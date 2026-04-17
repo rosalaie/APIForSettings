@@ -27,3 +27,26 @@ app.post('/users', async (req, res) => {
 
   res.json(user)
 })
+
+
+app.put('/users/:id', async (req, res) => {
+  const { id } = req.params
+  const { nome, email } = req.body
+
+  const user = await prisma.user.update({
+    where: { id: Number(id) },
+    data: { nome, email }
+  })
+
+  res.json(user)
+})
+
+app.delete('/users/:id', async (req, res) => {
+  const { id } = req.params
+
+  await prisma.user.delete({
+    where: { id: Number(id) }
+  })
+
+  res.json({ message: "Usuário deletado" })
+})

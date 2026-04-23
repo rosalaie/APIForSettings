@@ -1,9 +1,12 @@
 const express = require('express')
 const { PrismaClient } = require('@prisma/client')
+const cors = require('cors')
+
 
 const app = express()
 const prisma = new PrismaClient()
 
+app.use(cors())
 app.use(express.json())
 
 
@@ -19,13 +22,23 @@ app.listen(3000, () => {
 })
 
 app.post('/users', async (req, res) => {
-  const { nome, email } = req.body
+  try {
+    const { nome, email } = req.body
 
-  const user = await prisma.user.create({
-    data: { nome, email }
-  })
+    const user = await 
+    prisma.user.create({
+      data: { nome, email}
 
-  res.json(user)
+
+    })
+    res.json(user)
+
+  } catch (error) {
+    if (error.code === 'P2002'){
+      return res.status(400).json({ error: 'Email já cadastrado'})
+    }
+    res.status(500).json({ error: 'Erro interno'})
+  }
 })
 
 
@@ -50,3 +63,13 @@ app.delete('/users/:id', async (req, res) => {
 
   res.json({ message: "Usuário deletado" })
 })
+
+app.get('/users/:id', async (req, res) =>{
+  const { id } = req.params
+    const user = await 
+    prisma.user.findUnique({
+      where: { id: Number(id)}
+    })
+
+    res.json(user)
+  })

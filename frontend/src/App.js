@@ -52,11 +52,7 @@ function App() {
       {/* MENU */}
      
 
-      {/* HEADER */}
-      <header>
-        <h1>Sistema de Usuários</h1>
-        <hr className="hr3" />
-      </header>
+     
 
       {/* FORMULÁRIO */}
       <main>

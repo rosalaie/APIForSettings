@@ -47,6 +47,51 @@ function App() {
     listarUsuarios()
   }, [])
 
+  const styles = {
+  grid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+    gap: 10,
+    marginTop: 20
+  },
+  card: {
+    background: '#fff',
+    padding: 15,
+    borderRadius: 8,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems:'center',
+    boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+  },
+  nome: {
+    marginBottom: 5
+  },
+  email: {
+    color: '#555',
+    marginBottom: 10
+  },
+  actions: {
+    display: 'flex',
+    justifyContent: 'space-between'
+  },
+  edit: {
+    background: '#f59e0b',
+    border: 'none',
+    color: '#fff',
+    padding: '5px 10px',
+    borderRadius: 6,
+    cursor: 'pointer'
+  },
+  delete: {
+    background: '#ef4444',
+    border: 'none',
+    color: '#fff',
+    padding: '5px 10px',
+    borderRadius: 6,
+    cursor: 'pointer'
+  }
+}
   return (
     <>
       {/* MENU */}
@@ -96,42 +141,35 @@ function App() {
         </form>
 
         {/* LISTA */}
-        <h2>Lista de Usuários</h2>
+        
 
-        <table>
-          <thead>
-            <tr className="cabecalho">
-              <th>ID</th>
-              <th>Nome</th>
-              <th>Email</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
+        
+<h2>Lista de Usuários</h2>
 
-          <tbody>
-            {users.map(user => (
-              <tr key={user.id}>
-                <td>{user.id}</td>
-                <td>{user.nome}</td>
-                <td>{user.email}</td>
-                <td className="buttontable">
-                  <button
-                    className="btntable btn-excluir"
-                    onClick={async () => {
-                      await fetch(`http://localhost:3000/users/${user.id}`, {
-                        method: 'DELETE'
-                      })
-                      listarUsuarios()
-                    }}
-                  >
-                    Excluir
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+<div style={styles.grid}>
+  {users.map(user => (
+    <div key={user.id} style={styles.card}>
+      <h3 style={styles.nome}>{user.nome}</h3>
+      <p style={styles.email}>{user.email}</p>
 
+      <div style={styles.actions}>
+        <button style={styles.edit}>Editar</button>
+
+        <button
+          style={styles.delete}
+          onClick={async () => {
+            await fetch(`http://localhost:3000/users/${user.id}`, {
+              method: 'DELETE'
+            })
+            listarUsuarios()
+          }}
+        >
+          Excluir
+        </button>
+      </div>
+    </div>
+  ))}
+</div>
       </main>
     </>
   )

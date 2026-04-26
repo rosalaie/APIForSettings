@@ -42,7 +42,8 @@
     box-sizing: border-box;
     margin: 0;
     font-family: Arial, sans-serif;
-    background: #faf7f7;
+    background-color: #e6e2e2;
+    
 }
 
 /* HEADER */
@@ -70,7 +71,7 @@ main h2 {
     padding: 15px;
     font-size: 20px;
     margin-bottom: 20px;
-    background-color: #F5F5F5;
+    background-color: #e6e2e2;
 }
 
 form {

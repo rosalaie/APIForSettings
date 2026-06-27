@@ -1,5 +1,9 @@
+// src/App.js
 import './App.css'
 import { useEffect, useState } from 'react'
+
+// Uma representação simplificada de ícones para o menu
+const IconPlaceholder = () => <div style={{ width: '16px', height: '16px', background: '#ccc', borderRadius: '4px', marginRight: '10px' }}></div>;
 
 function App() {
   const [mostrarForm, setMostrarForm] = useState(false)
@@ -55,230 +59,177 @@ function App() {
     listarUsuarios()
   }, [])
 
-  const styles = {
-    topbar: {
-      height: 60,
-      background: '#1f2937',
-      color: '#fff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '0 20px',
-      boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-    },
-    left: {
-      display: 'flex',
-      gap: 10
-    },
-    center: {
-      position: 'absolute',
-      left: '50%',
-      transform: 'translateX(-50%)'
-    },
-    right: {
-      display: 'flex',
-      gap: 10
-    },
-    title: {
-      margin: 0,
-      fontSize: 18
-    },
-    iconBtn: {
-      background: 'transparent',
-      border: 'none',
-      color: '#fff',
-      fontSize: 16,
-      cursor: 'pointer',
-      padding: 8,
-      borderRadius: 6,
-      opacity: 0.8
-    },
-    container: {
-      maxWidth: 1100,
-      margin: 'auto',
-      padding: 20
-    },
-    grid: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-      marginTop: 20
-    },
-    card: {
-      background: '#fff',
-      padding: 15,
-      borderRadius: 8,
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
-    },
-    nome: { marginBottom: 5 },
-    email: { color: '#555' },
-    actions: {
-      display: 'flex',
-      gap: 10
-    },
-    novoBtn: {
-      background: '#2563eb',
-      color: '#fff',
-      border: 'none',
-      padding: '10px 15px',
-      borderRadius: 8,
-      cursor: 'pointer',
-      marginBottom: 20
-    },
-    formBox: {
-      background: '#fff',
-      padding: 15,
-      borderRadius: 10,
-      marginBottom: 20,
-      boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
-    },
-    salvar: {
-      background: '#16a34a',
-      color: '#fff',
-      border: 'none',
-      padding: '8px 12px',
-      borderRadius: 6,
-      cursor: 'pointer'
-    },
-    cancelar: {
-      background: '#dc2626',
-      color: '#fff',
-      border: 'none',
-      padding: '8px 12px',
-      borderRadius: 6,
-      cursor: 'pointer'
-    },
-    edit: {
-      background: '#f59e0b',
-      border: 'none',
-      color: '#fff',
-      padding: '5px 10px',
-      borderRadius: 6,
-      cursor: 'pointer'
-    },
-    delete: {
-      background: '#ef4444',
-      border: 'none',
-      color: '#fff',
-      padding: '5px 10px',
-      borderRadius: 6,
-      cursor: 'pointer'
-    },
-    error: {
-      color: 'red',
-      marginBottom: 10,
-      textAlign: 'center'
-    }
-  }
-
   return (
-    <>
-      {/* TOPO */}
-      <header style={styles.topbar}>
-        <div style={styles.left}>
-          <button style={styles.iconBtn} title="Menu">☰</button>
-          <button style={styles.iconBtn} title="Voltar">⬅</button>
+    <div className="app-layout">
+      {/* 1. BARRA LATERAL (SIDEBAR) */}
+      <aside className="sidebar">
+        <div className="sidebar-title">
+          <IconPlaceholder /> {/* Substitua por um ícone real se tiver */}
+          Sistema de Usuários
         </div>
+        
+        <nav className="sidebar-menu">
+          <a href="#" className="menu-item active">
+            <IconPlaceholder /> Usuários
+          </a>
+          <a href="#" className="menu-item">
+            <IconPlaceholder /> Dashboard
+          </a>
+          <a href="#" className="menu-item">
+            <IconPlaceholder /> Configurações
+          </a>
+        </nav>
 
-        <div style={styles.center}>
-          <h3 style={styles.title}>Usuários</h3>
+        <div className="sidebar-user">
+          <div className="avatar-circle">AD</div>
+          <div className="user-info">
+            <div className="user-name">Administrador</div>
+            <div className="user-status">admin@admin.com</div>
+          </div>
         </div>
+      </aside>
 
-        <div style={styles.right}>
-          <button style={styles.iconBtn}>⚙️</button>
-          <button style={styles.iconBtn} title="Sair">⏻</button>
+      {/* 2. ÁREA PRINCIPAL */}
+      <main className="main-content">
+        {/* TOPO (TOPBAR) */}
+        <header className="topbar">
+          <div className="topbar-left">
+            <button className="icon-btn" title="Menu">☰</button>
+            <button className="icon-btn" title="Voltar">⬅</button>
+            <div className="sidebar-title" style={{color: '#333', fontSize: '18px', margin: 0}}>Usuários</div>
+          </div>
+
+          <div className="topbar-right">
+            <button className="icon-btn">⚙️</button>
+            <button className="icon-btn" title="Sair">⏻</button>
+          </div>
+        </header>
+
+        {/* CONTEÚDO PRINCIPAL (CONTENT AREA) */}
+        <div className="content-area">
+          <div className="page-header">
+            <div>
+              <h2 className="page-title">Usuários</h2>
+              <p className="page-subtitle">Gerencie os usuários cadastrados no sistema.</p>
+            </div>
+            <button
+              className="novo-btn"
+              onClick={() => setMostrarForm(true)}
+            >
+              + Novo usuário
+            </button>
+          </div>
+
+          {erro && <p className="error-message">{erro}</p>}
+
+          {/* LISTA DE USUÁRIOS NO CARTÃO (CARD) */}
+          <div className="user-list-card">
+            <div className="search-container">
+              <span className="search-icon-placeholder">🔍</span>
+              <input type="text" className="search-input" placeholder="Buscar usuário por nome ou email..." />
+            </div>
+
+            {users.length === 0 ? (
+              <p style={{ textAlign: 'center', color: '#666' }}>Nenhum usuário cadastrado</p>
+            ) : (
+              <table className="user-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(user => (
+                    <tr key={user.id}>
+                      <td className="user-id">{user.id}</td>
+                      <td className="user-name">{user.nome}</td>
+                      <td className="user-email">{user.email}</td>
+                      <td className="table-actions">
+                        <button className="action-btn edit" title="Editar">
+                          ✏️
+                        </button>
+                        <button
+                          className="action-btn delete"
+                          title="Excluir"
+                          onClick={async () => {
+                            // Um prompt simples para confirmação
+                            if (window.confirm(`Tem certeza que deseja excluir o usuário ${user.nome}?`)) {
+                              await fetch(`http://localhost:3000/users/${user.id}`, {
+                                method: 'DELETE'
+                              })
+                              listarUsuarios()
+                            }
+                          }}
+                        >
+                          🗑️
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
-      </header>
+      </main>
 
-      {/* CONTEÚDO */}
-      <main style={styles.container}>
-        <h2>Usuários</h2>
+      {/* FORMULÁRIO (MODAL) */}
+      {mostrarForm && (
+        <div className="modal-overlay">
+          <form className="modal-content" onSubmit={(e) => e.preventDefault()}>
+            <button className="modal-close-btn" onClick={() => setMostrarForm(false)}>×</button>
+            <h3 className="modal-title">Novo usuário</h3>
+            
+            <div className="form-group">
+              <label className="form-label">Nome</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Digite o nome do usuário"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+              />
+            </div>
 
-        {/* BOTÃO DIREITA */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            style={styles.novoBtn}
-            onClick={() => setMostrarForm(true)}
-          >
-            Adicionar usuário
-          </button>
-        </div>
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input
+                type="email"
+                className="form-input"
+                placeholder="Digite o email do usuário"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
 
-        {erro && <p style={styles.error}>{erro}</p>}
-
-        {/* FORM */}
-        {mostrarForm && (
-          <form onSubmit={(e) => e.preventDefault()} style={styles.formBox}>
-            <input
-              type="text"
-              placeholder="Nome"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-            />
-
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-
-            <div style={styles.actions}>
-              <button onClick={criarUsuario} style={styles.salvar}>
-                Salvar
-              </button>
-
+            <div className="modal-actions">
               <button
+                type="button"
+                className="modal-btn cancelar"
                 onClick={() => {
                   setMostrarForm(false)
                   setNome('')
                   setEmail('')
                   setErro('')
                 }}
-                style={styles.cancelar}
               >
                 Cancelar
               </button>
+              <button
+                type="button"
+                className="modal-btn salvar"
+                onClick={criarUsuario}
+              >
+                Salvar
+              </button>
             </div>
           </form>
-        )}
-
-        {/* LISTA */}
-        {users.length === 0 ? (
-          <p>Nenhum usuário cadastrado</p>
-        ) : (
-          <div style={styles.grid}>
-            {users.map(user => (
-              <div key={user.id} style={styles.card}>
-                <div>
-                  <h3 style={styles.nome}>{user.nome}</h3>
-                  <p style={styles.email}>{user.email}</p>
-                </div>
-
-                <div style={styles.actions}>
-                  <button style={styles.edit}>Editar</button>
-
-                  <button
-                    style={styles.delete}
-                    onClick={async () => {
-                      await fetch(`http://localhost:3000/users/${user.id}`, {
-                        method: 'DELETE'
-                      })
-                      listarUsuarios()
-                    }}
-                  >
-                    Excluir
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
-    </>
+        </div>
+      )}
+    </div>
   )
 }
 

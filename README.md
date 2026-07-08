@@ -1,75 +1,356 @@
-# Sistema de Gerenciamento de Usuários
+# APIForSettings
 
-Aplicação Full Stack para gerenciamento de usuários utilizando React no frontend, Node.js + Express no backend, Prisma ORM e MySQL no banco de dados.
+API REST desenvolvida com Node.js, Express, Prisma ORM, MySQL e React.
+
+## Tecnologias
+
+### Backend
+- Node.js
+- Express
+- Prisma ORM
+- MySQL
+- Nodemon
+
+### Frontend
+- React
+- React Scripts
 
 ---
 
-# Estrutura do Projeto
+# 1. Clonar o projeto
 
-api-node-mysql/
+```bash
+git clone https://github.com/rosalaie/APIForSettings.git
+```
+
+Entrar na pasta do projeto:
+
+```bash
+cd APIForSettings
+```
+
+---
+
+# 2. Instalar dependências do Backend
+
+Na raiz do projeto execute:
+
+```bash
+npm install
+```
+
+Caso seja necessário instalar manualmente:
+
+```bash
+npm install express
+npm install prisma @prisma/client
+npm install mysql2
+npm install dotenv
+npm install cors
+npm install -D nodemon
+```
+
+---
+
+# 3. Instalar dependências do Frontend
+
+Entrar na pasta:
+
+```bash
+cd frontend
+```
+
+Instalar:
+
+```bash
+npm install
+```
+
+Caso seja necessário:
+
+```bash
+npm install react-scripts
+```
+
+Voltar para a raiz:
+
+```bash
+cd ..
+```
+
+---
+
+# 4. Instalar o MySQL
+
+Ubuntu / Lubuntu
+
+```bash
+sudo apt update
+sudo apt install mysql-server
+```
+
+Verificar instalação:
+
+```bash
+sudo systemctl status mysql
+```
+
+Entrar no MySQL:
+
+```bash
+sudo mysql
+```
+
+---
+
+# 5. Criar usuário do projeto
+
+Dentro do MySQL:
+
+```sql
+CREATE USER 'sobmedida'@'localhost'
+IDENTIFIED BY 'Senha@123';
+
+GRANT ALL PRIVILEGES
+ON *.*
+TO 'sobmedida'@'localhost';
+
+FLUSH PRIVILEGES;
+```
+
+Criar banco:
+
+```sql
+CREATE DATABASE APIForSettings;
+```
+
+Verificar:
+
+```sql
+SHOW DATABASES;
+```
+
+Sair:
+
+```sql
+exit;
+```
+
+---
+
+# 6. Configurar o Prisma
+
+## IMPORTANTE
+
+Após clonar o projeto pode ocorrer erro no Prisma.
+
+Caso isso aconteça:
+
+Apague:
+
+```
+.env
+```
+
+e, se necessário, recrie a configuração do Prisma.
+
+Criar novamente:
+
+```bash
+npx prisma init
+```
+
+No arquivo `.env`, alterar a URL:
+
+```env
+DATABASE_URL="mysql://sobmedida:Senha%40123@localhost:3306/APIForSettings"
+```
+
+> Atenção: o caractere `@` da senha deve ser substituído por `%40`.
+
+---
+
+# 7. Configurar schema.prisma
+
+O generator deve estar assim:
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+```
+
+---
+
+# 8. Gerar o Prisma Client
+
+```bash
+npx prisma generate
+```
+
+Caso ainda não existam as tabelas:
+
+```bash
+npx prisma db push
+```
+
+ou
+
+```bash
+npx prisma migrate deploy
+```
+
+(se houver migrations)
+
+---
+
+# 9. Rodar o Backend
+
+```bash
+npm run dev
+```
+
+ou
+
+```bash
+node server.js
+```
+
+---
+
+# 10. Rodar o Frontend
+
+Entrar na pasta:
+
+```bash
+cd frontend
+```
+
+Executar:
+
+```bash
+npm start
+```
+
+O React abrirá em:
+
+```
+http://localhost:3000
+```
+
+---
+
+# Problemas comuns
+
+## Prisma Client não inicializado
+
+Erro:
+
+```
+@prisma/client did not initialize yet
+```
+
+Solução:
+
+```bash
+npx prisma generate
+```
+
+---
+
+## react-scripts not found
+
+Executar:
+
+```bash
+cd frontend
+npm install
+```
+
+Se necessário:
+
+```bash
+npm install react-scripts
+```
+
+---
+
+## Banco não conecta
+
+Verificar se o MySQL está ativo:
+
+```bash
+sudo systemctl status mysql
+```
+
+Iniciar:
+
+```bash
+sudo systemctl start mysql
+```
+
+---
+
+## Ver bancos
+
+```sql
+SHOW DATABASES;
+```
+
+---
+
+## Entrar no banco
+
+```sql
+USE APIForSettings;
+```
+
+---
+
+## Ver tabelas
+
+```sql
+SHOW TABLES;
+```
+
+---
+
+## Ver registros
+
+```sql
+SELECT * FROM User;
+```
+
+---
+
+# Git
+
+Salvar alterações:
+
+```bash
+git add .
+git commit -m "Descrição da alteração"
+git push
+```
+
+---
+
+# Estrutura do projeto
+
+```
+APIForSettings
+│
 ├── frontend/
-│   ├── public/
-│   │   └── index.html
-│   ├── src/
-│   │   ├── App.js
-│   │   ├── App.css
-│   │   └── index.js
-│   ├── package.json
-│   └── README.md
 │
 ├── prisma/
 │   └── schema.prisma
 │
 ├── server.js
 ├── package.json
-├── .env
 └── README.md
-
----
-
-# Tecnologias Utilizadas
-
-## Frontend
-- React
-- JavaScript
-- CSS
-- Fetch API
-
-## Backend
-- Node.js
-- Express
-- Prisma ORM
-
-## Banco de Dados
-- MySQL
-
----
-
-# Funcionalidades
-
-✅ Cadastro de usuários  
-✅ Listagem de usuários  
-✅ Exclusão de usuários  
-✅ Validação de email duplicado  
-✅ Integração frontend/backend  
-✅ Layout administrativo moderno  
-✅ Sidebar lateral  
-✅ Paginação de usuários  
-✅ API RESTful  
-
----
-
-# Requisitos
-
-- Node.js v18 ou superior
-- MySQL Server
-- npm
-
----
-
-# Instalação
-
-## 1. Clone o projeto
-
-```bash
-git clone https://github.com/rosalaie/APIForSettings.git
+```

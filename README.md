@@ -103,17 +103,17 @@ sudo mysql
 
 ---
 
-# 5. Criar usuário do projeto
+# 5. Criar usuário do projeto so se for criar um usuario novo
 
 Dentro do MySQL:
 
 ```sql
-CREATE USER 'sobmedida'@'localhost'
-IDENTIFIED BY 'Senha@123';
+CREATE USER '
+IDENTIFIED BY '';
 
 GRANT ALL PRIVILEGES
 ON *.*
-TO 'sobmedida'@'localhost';
+TO ''@'localhost';
 
 FLUSH PRIVILEGES;
 ```
@@ -163,10 +163,10 @@ npx prisma init
 No arquivo `.env`, alterar a URL:
 
 ```env
-DATABASE_URL="mysql://sobmedida:Senha%40123@localhost:3306/APIForSettings"
+DATABASE_URL="mysql://sobmedida:%40uu73@localhost:3306/APIForSettings"
 ```
 
-> Atenção: o caractere `@` da senha deve ser substituído por `%40`.
+
 
 ---
 

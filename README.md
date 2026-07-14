@@ -71,6 +71,7 @@ Caso seja necessário:
 ```bash
 npm install react-scripts
 ```
+npm install react-router-dom (para as rotas)
 
 Voltar para a raiz:
 
@@ -169,6 +170,7 @@ DATABASE_URL="mysql://sobmedida:%40uu73@localhost:3306/APIForSettings"
 
 
 ---
+ou apenas de npm install prisma. Ao fazer a instala;'ao, instalar a mesmo versao do prisma do projeto 6...
 
 # 7. Configurar schema.prisma
 

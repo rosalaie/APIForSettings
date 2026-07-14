@@ -48,6 +48,11 @@ npm install mysql2
 npm install dotenv
 npm install cors
 npm install -D nodemon
+Obs.
+I Instala as bibliotecas de criptografia e token no lugar correto
+npm install bcryptjs jsonwebtoken
+
+II no front npm install react-router-dom (para as rotas)
 ```
 
 ---
@@ -209,8 +214,8 @@ npx prisma migrate deploy
 
 (se houver migrations)
 
----
-
+--- 
+se fizer alteracoes envolvendo o banco rode npx prisma migrate dev --name criacao_tabela_users (exemplo)
 # 9. Rodar o Backend
 
 ```bash

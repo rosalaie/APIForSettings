@@ -1,82 +1,95 @@
-// src/App.js
-import './App.css'
-import { useEffect, useState } from 'react'
-
-// Uma representação simplificada de ícones para o menu
-const IconPlaceholder = () => <div style={{ width: '16px', height: '16px', background: '#ccc', borderRadius: '4px', marginRight: '10px' }}></div>;
+// frontend/src/App.js
+import './App.css';
+import { useEffect, useState } from 'react';
+import { FaStore, FaUsers, FaBoxOpen, FaTags, FaCog, FaDollarSign, FaShoppingBag } from "react-icons/fa";
+import { Link, Outlet, useLocation } from 'react-router-dom';
 
 function App() {
-  const [mostrarForm, setMostrarForm] = useState(false)
-  const [users, setUsers] = useState([])
-  const [nome, setNome] = useState('')
-  const [email, setEmail] = useState('')
-  const [erro, setErro] = useState('')
+  const [clientes, setClientes] = useState([]);
+  const [erro, setErro] = useState('');
+  const [loading, setLoading] = useState(true);
+  
+  const location = useLocation();
 
-  async function listarUsuarios() {
+  // Função para definir o título correto da Topbar dinamicamente
+  const obterTituloPagina = () => {
+    if (location.pathname === '/clientes') return 'Clientes';
+    if (location.pathname === '/produtos') return 'Catálogo de Produtos';
+    if (location.pathname === '/categorias') return 'Categorias'; // Adicionado para a nova aba!
+    return 'Painel de Controle';
+  };
+
+  // Carrega os clientes do backend para alimentar a tabela do dashboard e o contador
+  async function listarClientes() {
     try {
-      const res = await fetch('http://localhost:3000/users')
+      setLoading(true);
+      const res = await fetch('http://localhost:3000/users');
 
       if (!res.ok) {
-        throw new Error('Erro ao buscar usuários')
+        throw new Error('Erro ao buscar clientes');
       }
 
-      const data = await res.json()
-      setUsers(data)
-
+      const data = await res.json();
+      setClientes(data);
     } catch (err) {
-      console.error(err)
-      setErro('Erro ao carregar usuários')
-    }
-  }
-
-  async function criarUsuario() {
-    setErro('')
-    try {
-      const res = await fetch('http://localhost:3000/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, email })
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setErro(data.error)
-        return
-      }
-
-      setNome('')
-      setEmail('')
-      setMostrarForm(false)
-      listarUsuarios()
-
-    } catch {
-      setErro('Erro de conexão com o servidor')
+      console.error(err);
+      setErro('Não foi possível carregar os clientes.');
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    listarUsuarios()
-  }, [])
+    listarClientes();
+  }, []);
 
   return (
     <div className="app-layout">
       {/* 1. BARRA LATERAL (SIDEBAR) */}
       <aside className="sidebar">
         <div className="sidebar-title">
-          <IconPlaceholder /> {/* Substitua por um ícone real se tiver */}
-          Sistema de Usuários
+          <span className="search-icon-placeholder"></span>
+          SobMedida
         </div>
         
         <nav className="sidebar-menu">
-          <a href="#" className="menu-item active">
-            <IconPlaceholder /> Usuários
-          </a>
+          {/* Aba Dashboard */}
+          <Link to="/" className={`menu-item ${location.pathname === '/' ? 'active' : ''}`}>
+            <div className='logo'>     
+              <FaStore /> 
+              <span> Dashboard </span>
+            </div>
+          </Link>
+
+          {/* Aba Clientes */}
+          <Link to="/clientes" className={`menu-item ${location.pathname === '/clientes' ? 'active' : ''}`}>
+            <div className='logo'>     
+              <FaUsers /> 
+              <span> Clientes </span>
+            </div>
+          </Link>
+
+          {/* Aba Produtos */}
+          <Link to="/produtos" className={`menu-item ${location.pathname === '/produtos' ? 'active' : ''}`}>
+            <div className='logo'>     
+              <FaBoxOpen /> 
+              <span> Produtos </span>
+            </div>
+          </Link>
+
+          {/* NOVA ABA: Categorias */}
+          <Link to="/categorias" className={`menu-item ${location.pathname === '/categorias' ? 'active' : ''}`}>
+            <div className='logo'>     
+              <FaTags /> 
+              <span> Categorias </span>
+            </div>
+          </Link>
+
           <a href="#" className="menu-item">
-            <IconPlaceholder /> Dashboard
-          </a>
-          <a href="#" className="menu-item">
-            <IconPlaceholder /> Configurações
+            <div className='logo'>     
+              <FaCog /> 
+              <span> Configurações </span>
+            </div>
           </a>
         </nav>
 
@@ -96,7 +109,9 @@ function App() {
           <div className="topbar-left">
             <button className="icon-btn" title="Menu">☰</button>
             <button className="icon-btn" title="Voltar">⬅</button>
-            <div className="sidebar-title" style={{color: '#333', fontSize: '18px', margin: 0}}>Usuários</div>
+            <div className="sidebar-title" style={{color: '#333', fontSize: '18px', margin: 0}}>
+              {obterTituloPagina()}
+            </div>
           </div>
 
           <div className="topbar-right">
@@ -105,132 +120,143 @@ function App() {
           </div>
         </header>
 
-        {/* CONTEÚDO PRINCIPAL (CONTENT AREA) */}
+        {/* CONTEÚDO DINÂMICO (CONTENT AREA) */}
         <div className="content-area">
-          <div className="page-header">
-            <div>
-              <h2 className="page-title">Usuários</h2>
-              <p className="page-subtitle">Gerencie os usuários cadastrados no sistema.</p>
-            </div>
-            <button
-              className="novo-btn"
-              onClick={() => setMostrarForm(true)}
-            >
-              + Novo usuário
-            </button>
-          </div>
+          {/* Validação: Se não estiver na rota raiz "/", renderiza a sub-rota correspondente */}
+          {location.pathname !== '/' ? (
+            <Outlet />
+          ) : (
+            <>
+              {/* TÍTULO DA PÁGINA */}
+              <div className="page-header">
+                <div>
+                  <h2 className="page-title">Olá, Administrador 👋</h2>
+                  <p className="page-subtitle">Acompanhe as métricas e clientes do seu e-commerce.</p>
+                </div>
+              </div>
 
-          {erro && <p className="error-message">{erro}</p>}
+              {/* 📊 SEÇÃO DE CARDS DE ESTATÍSTICAS */}
+              <div className="dashboard-cards" style={styles.cardsContainer}>
+                <div className="card-stat" style={styles.card}>
+                  <div style={styles.cardHeader}>
+                    <span style={styles.cardTitle}>Total de Vendas</span>
+                    <FaDollarSign style={{ color: '#10b981', fontSize: '20px' }} />
+                  </div>
+                  <h3 style={styles.cardValue}>R$ 0,00</h3>
+                  <p style={styles.cardSubtitle}>Nenhuma venda registrada</p>
+                </div>
 
-          {/* LISTA DE USUÁRIOS NO CARTÃO (CARD) */}
-          <div className="user-list-card">
-            <div className="search-container">
-              <span className="search-icon-placeholder">🔍</span>
-              <input type="text" className="search-input" placeholder="Buscar usuário por nome ou email..." />
-            </div>
+                <div className="card-stat" style={styles.card}>
+                  <div style={styles.cardHeader}>
+                    <span style={styles.cardTitle}>Pedidos Pendentes</span>
+                    <FaShoppingBag style={{ color: '#f59e0b', fontSize: '20px' }} />
+                  </div>
+                  <h3 style={styles.cardValue}>0</h3>
+                  <p style={styles.cardSubtitle}>Aguardando confirmação</p>
+                </div>
 
-            {users.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#666' }}>Nenhum usuário cadastrado</p>
-            ) : (
-              <table className="user-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Nome</th>
-                    <th>Email</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map(user => (
-                    <tr key={user.id}>
-                      <td className="user-id">{user.id}</td>
-                      <td className="user-name">{user.nome}</td>
-                      <td className="user-email">{user.email}</td>
-                      <td className="table-actions">
-                        <button className="action-btn edit" title="Editar">
-                          ✏️
-                        </button>
-                        <button
-                          className="action-btn delete"
-                          title="Excluir"
-                          onClick={async () => {
-                            // Um prompt simples para confirmação
-                            if (window.confirm(`Tem certeza que deseja excluir o usuário ${user.nome}?`)) {
-                              await fetch(`http://localhost:3000/users/${user.id}`, {
-                                method: 'DELETE'
-                              })
-                              listarUsuarios()
-                            }
-                          }}
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+                <div className="card-stat" style={styles.card}>
+                  <div style={styles.cardHeader}>
+                    <span style={styles.cardTitle}>Clientes Ativos</span>
+                    <FaUsers style={{ color: '#3a86c8', fontSize: '20px' }} />
+                  </div>
+                  <h3 style={styles.cardValue}>{clientes.length}</h3>
+                  <p style={styles.cardSubtitle}>Cadastrados no sistema</p>
+                </div>
+              </div>
+
+              {erro && <p className="error-message">{erro}</p>}
+
+              <div className="user-list-card" style={{ marginTop: '25px' }}>
+                <h3 style={{ margin: '0 0 15px 0', color: '#1b263b', fontSize: '18px' }}>Últimos Clientes Cadastrados</h3>
+                <div className="search-container">
+                  <span className="search-icon-placeholder">🔍</span>
+                  <input type="text" className="search-input" placeholder="Buscar clientes..." />
+                </div>
+
+                {loading ? (
+                  <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>Buscando dados no banco...</p>
+                ) : clientes.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>Nenhum cliente cadastrado até o momento.</p>
+                ) : (
+                  <table className="user-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Nome</th>
+                        <th>Email</th>
+                        <th>Perfil</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clientes.map(cliente => (
+                        <tr key={cliente.id}>
+                          <td className="user-id">{cliente.id}</td>
+                          <td className="user-name" style={{ fontWeight: '600' }}>{cliente.nome}</td>
+                          <td className="user-email">{cliente.email}</td>
+                          <td>
+                            <span style={styles.roleBadge}>{cliente.role}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </main>
-
-      {/* FORMULÁRIO (MODAL) */}
-      {mostrarForm && (
-        <div className="modal-overlay">
-          <form className="modal-content" onSubmit={(e) => e.preventDefault()}>
-            <button className="modal-close-btn" onClick={() => setMostrarForm(false)}>×</button>
-            <h3 className="modal-title">Novo usuário</h3>
-            
-            <div className="form-group">
-              <label className="form-label">Nome</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Digite o nome do usuário"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Email</label>
-              <input
-                type="email"
-                className="form-input"
-                placeholder="Digite o email do usuário"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="modal-btn cancelar"
-                onClick={() => {
-                  setMostrarForm(false)
-                  setNome('')
-                  setEmail('')
-                  setErro('')
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="modal-btn salvar"
-                onClick={criarUsuario}
-              >
-                Salvar
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
     </div>
-  )
+  );
 }
 
-export default App
+// Estilos adicionais Inline rápidos para manter o design limpo e responsivo
+const styles = {
+  cardsContainer: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gap: '20px',
+    marginBottom: '10px'
+  },
+  card: {
+    background: '#fff',
+    padding: '20px',
+    borderRadius: '12px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+    border: '1px solid #e2e8f0'
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '10px'
+  },
+  cardTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#64748b'
+  },
+  cardValue: {
+    fontSize: '28px',
+    fontWeight: 'bold',
+    margin: '5px 0',
+    color: '#1e293b'
+  },
+  cardSubtitle: {
+    fontSize: '12px',
+    color: '#94a3b8',
+    margin: 0
+  },
+  roleBadge: {
+    background: '#e0f2fe',
+    color: '#0369a1',
+    padding: '4px 10px',
+    borderRadius: '12px',
+    fontSize: '11px',
+    fontWeight: 'bold',
+    textTransform: 'uppercase'
+  }
+};
+
+export default App;

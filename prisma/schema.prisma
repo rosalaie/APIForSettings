@@ -12,3 +12,37 @@ model User {
   nome  String
   email String  @unique
 }
+
+model Users {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  sobrenome String?  // Novo campo opcional
+  email     String   @unique
+  cpf       String?  @unique // CPF opcional no banco, mas obrigatório no Front
+  telefone  String?  // Novo campo opcional
+  endereco  String?  // Novo campo opcional
+  senha     String
+  role      String   @default("CLIENT")
+  createdAt DateTime @default(now())
+}
+
+model Products {
+  id          Int        @id @default(autoincrement())
+  nome        String
+  descricao   String?
+  preco       Float
+  estoque     Int        @default(0)
+  imagemUrl   String?
+  createdAt   DateTime   @default(now())
+  
+  // Chave estrangeira 
+  categoriaId Int
+  categoria   Categories @relation(fields: [categoriaId], references: [id])
+}
+
+model Categories {
+  id        Int        @id @default(autoincrement())
+  nome      String     @unique
+  descricao String?
+  produtos  Products[] // Uma categoria pode ter uma lista de vários produtos
+}

@@ -74,6 +74,7 @@ npm install
 Caso seja necessário:
 
 ```bash
+npm install firebase
 npm install react-scripts
 ```
 npm install react-router-dom (para as rotas)

@@ -1,8 +1,5 @@
-// frontend/src/pages/Produtos.jsx
 import { useEffect, useState } from 'react';
-import { FaBoxOpen, FaPlus, FaTrash, FaEdit, FaCloudUploadAlt } from 'react-icons/fa';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../services/firebase';
+import { FaBoxOpen, FaPlus, FaTrash, FaEdit } from 'react-icons/fa';
 
 export default function Produtos() {
   const [produtos, setProdutos] = useState([]);
@@ -12,21 +9,22 @@ export default function Produtos() {
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const [busca, setBusca] = useState('');
 
-  // Estados do formulário de produto
+  // Estado para controlar se estamos EDITANDO um produto ou CRIANDO um novo
+  const [produtoEditandoId, setProdutoEditandoId] = useState(null);
+
+  // Estados do formulário
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   const [preco, setPreco] = useState('');
   const [estoque, setEstoque] = useState('');
-  
-  // Estado para o arquivo de imagem do Firebase
   const [imagemArquivo, setImagemArquivo] = useState(null);
   const [previewImagem, setPreviewImagem] = useState('');
-
-  // Estados de categorias para a caixa de seleção (Select)
   const [categorias, setCategorias] = useState([]);
   const [categoriaId, setCategoriaId] = useState('');
 
-  // 1. LISTAR PRODUTOS DO BACKEND
+  const IMGBB_API_KEY = '7977dacd0664e5cededa23464cff6599';
+
+  // 1. LISTAR PRODUTOS
   async function listarProdutos() {
     try {
       setLoading(true);
@@ -42,7 +40,7 @@ export default function Produtos() {
     }
   }
 
-  // 2. CARREGAR CATEGORIAS PARA O SELECT
+  // 2. CARREGAR CATEGORIAS
   async function carregarCategoriasParaOSelect() {
     try {
       const res = await fetch('http://localhost:3000/categories');
@@ -54,7 +52,32 @@ export default function Produtos() {
     }
   }
 
-  // 3. SELECIONAR FOTO E GERAR PREVIEW
+  // 3. ABRIR MODAL PARA NOVO PRODUTO
+  function abrirModalNovoProduto() {
+    setProdutoEditandoId(null);
+    setNome('');
+    setDescricao('');
+    setPreco('');
+    setEstoque('');
+    setImagemArquivo(null);
+    setPreviewImagem('');
+    setCategoriaId('');
+    setMostrarForm(true);
+  }
+
+  // 4. ABRIR MODAL PREENCHIDO PARA EDITAR
+  function prepararEdicao(produto) {
+    setProdutoEditandoId(produto.id);
+    setNome(produto.nome || '');
+    setDescricao(produto.descricao || '');
+    setPreco(produto.preco ? produto.preco.toString() : '');
+    setEstoque(produto.estoque ? produto.estoque.toString() : '');
+    setCategoriaId(produto.categoriaId ? produto.categoriaId.toString() : '');
+    setPreviewImagem(produto.imagemUrl || '');
+    setImagemArquivo(null);
+    setMostrarForm(true);
+  }
+
   function handleSelecionarImagem(e) {
     const arquivo = e.target.files[0];
     if (arquivo) {
@@ -63,52 +86,56 @@ export default function Produtos() {
     }
   }
 
-  // 4. UPLOAD DA IMAGEM PARA O FIREBASE STORAGE
-  async function fazerUploadImagemFirebase() {
+  // UPLOAD IMGBB
+  async function fazerUploadImagemImgBB() {
     if (!imagemArquivo) return '';
 
-    try {
-      setEnviandoImagem(true);
-      // Cria um nome único com timestamp para a imagem não sobrescrever outra
-      const nomeArquivo = `produtos/${Date.now()}_${imagemArquivo.name}`;
-      const storageRef = ref(storage, nomeArquivo);
+    const formData = new FormData();
+    formData.append('image', imagemArquivo);
 
-      // Envia o arquivo para o Firebase
-      await uploadBytes(storageRef, imagemArquivo);
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+      method: 'POST',
+      body: formData
+    });
 
-      // Pega a URL pública gerada pelo Google Firebase
-      const urlDownload = await getDownloadURL(storageRef);
-      return urlDownload;
-    } catch (error) {
-      console.error("Erro ao subir imagem no Firebase:", error);
-      throw new Error("Falha ao enviar foto para o servidor de arquivos.");
-    } finally {
-      setEnviandoImagem(false);
+    const data = await res.json();
+    if (data.success) {
+      return data.data.url;
+    } else {
+      throw new Error('Falha ao enviar imagem para o ImgBB.');
     }
   }
 
-  // 5. CADASTRAR NOVO PRODUTO
-  async function criarProduto(e) {
+  // 5. CADASTRAR OU ATUALIZAR PRODUTO
+  async function salvarProduto(e) {
     e.preventDefault();
     setErro('');
+    setEnviandoImagem(true);
 
     try {
-      let finalImagemUrl = '';
+      let finalImagemUrl = previewImagem;
 
-      // Se o usuário selecionou uma foto, faz o upload no Firebase primeiro
+      // Se selecionou um arquivo novo, faz upload no ImgBB
       if (imagemArquivo) {
-        finalImagemUrl = await fazerUploadImagemFirebase();
+        finalImagemUrl = await fazerUploadImagemImgBB();
       }
 
-      const res = await fetch('http://localhost:3000/products', {
-        method: 'POST',
+      const ehEdicao = !!produtoEditandoId;
+      const url = ehEdicao 
+        ? `http://localhost:3000/products/${produtoEditandoId}`
+        : 'http://localhost:3000/products';
+
+      const method = ehEdicao ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nome,
           descricao,
           preco: parseFloat(preco),
           estoque: parseInt(estoque),
-          imagemUrl: finalImagemUrl, // Envia a URL pública do Firebase
+          imagemUrl: finalImagemUrl,
           categoriaId: parseInt(categoriaId)
         })
       });
@@ -116,24 +143,16 @@ export default function Produtos() {
       const data = await res.json();
 
       if (!res.ok) {
-        setErro(data.error || 'Erro ao cadastrar produto');
-        return;
+        throw new Error(data.error || 'Erro ao salvar produto');
       }
 
-      // Limpa os campos e fecha o modal
-      setNome('');
-      setDescricao('');
-      setPreco('');
-      setEstoque('');
-      setImagemArquivo(null);
-      setPreviewImagem('');
-      setCategoriaId('');
       setMostrarForm(false);
-      
-      // Atualiza a tabela de produtos
       listarProdutos();
     } catch (err) {
+      console.error(err);
       setErro(err.message || 'Erro de conexão com o servidor.');
+    } finally {
+      setEnviandoImagem(false);
     }
   }
 
@@ -153,7 +172,6 @@ export default function Produtos() {
     }
   }
 
-  // Filtro de pesquisa de produtos
   const produtosFiltrados = produtos.filter(p =>
     p.nome.toLowerCase().includes(busca.toLowerCase())
   );
@@ -165,20 +183,18 @@ export default function Produtos() {
 
   return (
     <>
-      {/* CABEÇALHO DA PÁGINA */}
       <div className="page-header">
         <div>
           <h2 className="page-title">Catálogo de Produtos</h2>
           <p className="page-subtitle">Gerencie as peças, estoque e preços do e-commerce.</p>
         </div>
-        <button className="novo-btn" onClick={() => setMostrarForm(true)}>
+        <button className="novo-btn" onClick={abrirModalNovoProduto}>
           <FaPlus style={{ marginRight: '8px', fontSize: '12px' }} /> Novo Produto
         </button>
       </div>
 
-      {erro && <p className="error-message">{erro}</p>}
+      {erro && <p className="error-message" style={{ color: '#ef4444', marginBottom: '15px' }}>{erro}</p>}
 
-      {/* LISTAGEM EM TABELA */}
       <div className="user-list-card">
         <div className="search-container">
           <span className="search-icon-placeholder">🔍</span>
@@ -243,7 +259,8 @@ export default function Produtos() {
                     </span>
                   </td>
                   <td className="table-actions">
-                    <button className="action-btn edit" title="Editar"><FaEdit /></button>
+                    {/* BOTÃO EDITAR AGORA CHAMA O PREPARAR EDIÇÃO */}
+                    <button className="action-btn edit" title="Editar" onClick={() => prepararEdicao(produto)}><FaEdit /></button>
                     <button className="action-btn delete" title="Excluir" onClick={() => excluirProduto(produto.id, produto.nome)}><FaTrash /></button>
                   </td>
                 </tr>
@@ -253,19 +270,17 @@ export default function Produtos() {
         )}
       </div>
 
-      {/* MODAL DE CADASTRO COM UPLOAD DE IMAGEM */}
       {mostrarForm && (
         <div className="modal-overlay">
-          <form className="modal-content" style={{ width: '500px' }} onSubmit={criarProduto}>
+          <form className="modal-content" style={{ width: '500px' }} onSubmit={salvarProduto}>
             <button type="button" className="modal-close-btn" onClick={() => setMostrarForm(false)}>×</button>
-            <h3 className="modal-title">Adicionar Peça ao Catálogo</h3>
+            <h3 className="modal-title">{produtoEditandoId ? 'Editar Peça do Catálogo' : 'Adicionar Peça ao Catálogo'}</h3>
             
             <div className="form-group">
               <label className="form-label">Nome do Produto *</label>
               <input type="text" className="form-input" placeholder="Ex: Vestido Sob Medida Elegance" value={nome} onChange={(e) => setNome(e.target.value)} required />
             </div>
 
-            {/* SELEÇÃO DE CATEGORIA */}
             <div className="form-group">
               <label className="form-label">Categoria do Produto *</label>
               <select 
@@ -296,9 +311,8 @@ export default function Produtos() {
               </div>
             </div>
 
-            {/* SELEÇÃO E UPLOAD DA IMAGEM FIREBASE */}
             <div className="form-group">
-              <label className="form-label">Foto do Produto (Firebase Storage)</label>
+              <label className="form-label">Foto do Produto</label>
               <input 
                 type="file" 
                 accept="image/*" 
@@ -307,7 +321,6 @@ export default function Produtos() {
                 style={{ padding: '8px' }}
               />
               
-              {/* Pré-visualização da imagem escolhida */}
               {previewImagem && (
                 <div style={{ marginTop: '10px', textAlign: 'center' }}>
                   <img 
@@ -326,8 +339,13 @@ export default function Produtos() {
 
             <div className="modal-actions">
               <button type="button" className="modal-btn cancelar" onClick={() => setMostrarForm(false)} disabled={enviandoImagem}>Cancelar</button>
-              <button type="submit" className="modal-btn salvar" disabled={enviandoImagem}>
-                {enviandoImagem ? 'Enviando imagem...' : 'Salvar Produto'}
+              <button 
+                type="submit" 
+                className="modal-btn salvar" 
+                disabled={enviandoImagem}
+                style={{ opacity: enviandoImagem ? 0.7 : 1, cursor: enviandoImagem ? 'not-allowed' : 'pointer' }}
+              >
+                {enviandoImagem ? 'Salvando...' : (produtoEditandoId ? 'Atualizar Produto' : 'Salvar Produto')}
               </button>
             </div>
           </form>

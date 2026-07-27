@@ -163,26 +163,28 @@ app.post('/products', async (req, res) => {
 });
 
 // Editar um produto existente (Aceitando alteração de categoria)
+// ROTA PARA EDITAR/ATUALIZAR UM PRODUTO EXISTENTE
 app.put('/products/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { nome, descricao, preco, estoque, imagemUrl, categoriaId } = req.body;
+  const { id } = req.params;
+  const { nome, descricao, preco, estoque, imagemUrl, categoriaId } = req.body;
 
-    const produtoAtualizado = await prisma.products.update({
+  try {
+    const produtoAtualizado = await prisma.product.update({
       where: { id: Number(id) },
       data: {
         nome,
         descricao,
-        preco: preco !== undefined ? parseFloat(preco) : undefined,
-        estoque: estoque !== undefined ? parseInt(estoque) : undefined,
-        imagemUrl,
-        categoriaId: categoriaId !== undefined ? parseInt(categoriaId) : undefined
+        preco: parseFloat(preco),
+        estoque: parseInt(estoque),
+        ...(imagemUrl && { imagemUrl }), // Só atualiza a foto se enviou uma nova
+        ...(categoriaId && { categoriaId: parseInt(categoriaId) })
       }
     });
+
     res.json(produtoAtualizado);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao atualizar produto.' });
+    console.error("Erro ao atualizar produto:", error);
+    res.status(400).json({ error: "Não foi possível atualizar o produto." });
   }
 });
 

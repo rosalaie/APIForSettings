@@ -89,7 +89,7 @@ cd ..
 
 # 4. Instalar o MySQL
 
-Ubuntu / Lubuntu
+Ubuntu
 
 ```bash
 sudo apt update

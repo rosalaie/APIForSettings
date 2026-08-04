@@ -1,10 +1,10 @@
 /* src/App.css */
 :root {
-  --bg-color: #203a70;
+  --bg-color: #f8fafc; /* Fundo geral neutro e claro */
   --white: #ffffff;
-  --dark-blue: #111827;
-  --text-main: #333;
-  --text-subtle: #666;
+  --dark-blue: #0f172a; /* Azul marinho escuro para a Sidebar */
+  --text-main: #1e293b;
+  --text-subtle: #64748b;
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
   --border: #e2e8f0;
@@ -76,7 +76,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #555;
+  background-color: #334155;
   color: #fff;
   display: flex;
   align-items: center;
@@ -91,13 +91,14 @@ body {
 
 .user-info .user-status {
   font-size: 12px;
-  color: #aaa;
+  color: #94a3b8;
 }
 
 /* --- MAIN CONTENT --- */
 .main-content {
   flex-grow: 1;
-  background-color: var(--bg-color);
+  background-color: var(--bg-color); /* Fundo cinza claro clean */
+  min-height: 100vh;
 }
 
 /* Topbar */
@@ -109,7 +110,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 30px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 
 .topbar-left, .topbar-right {
@@ -122,7 +123,7 @@ body {
   background: none;
   border: none;
   font-size: 18px;
-  color: #666;
+  color: #64748b;
   cursor: pointer;
   padding: 8px;
   border-radius: 6px;
@@ -130,7 +131,7 @@ body {
 }
 
 .icon-btn:hover {
-  background-color: #f3f4f6;
+  background-color: #f1f5f9;
 }
 
 .topbar-right {
@@ -150,14 +151,16 @@ body {
 }
 
 .page-title {
-  color: #ffffff; /* Muda o título para branco */
+  color: #0f172a; /* Grafite escuro profissional */
   font-size: 24px;
-  font-weight: bold;
+  font-weight: 700;
+  margin: 0 0 5px 0;
 }
 
 .page-subtitle {
-  color: #cbd5e1; /* Um tom de cinza bem clarinho para o subtítulo */
+  color: var(--text-subtle); /* Cinza médio suave */
   font-size: 14px;
+  margin: 0;
 }
 
 .novo-btn {
@@ -179,20 +182,19 @@ body {
 .user-list-card {
   background-color: var(--white);
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
   padding: 25px;
+  border: 1px solid var(--border);
 }
 
 .search-container {
   position: relative;
   margin-bottom: 25px;
-  margin-right: 15px;
 }
 
 .search-input {
   width: 100%;
-  
-  padding: 0px 8px 20px 15px;
+  padding: 12px 15px 12px 40px;
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 14px;
@@ -206,14 +208,11 @@ body {
 
 .search-icon-placeholder {
   position: absolute;
-  left: 5px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  width: 25px;
-  height: 25px;
-  object-fit: contain;
+  color: #94a3b8;
   pointer-events: none;
-  
 }
 
 /* --- TABLE --- */
@@ -224,16 +223,19 @@ body {
 
 .user-table th {
   text-align: left;
-  padding: 10px;
+  padding: 12px;
   color: #64748b;
-  font-weight: 500;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 13px;
   border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .user-table td {
-  padding: 15px;
+  padding: 15px 12px;
   border-bottom: 1px solid var(--border);
+  vertical-align: middle;
 }
 
 .user-table tr:last-child td {
@@ -256,28 +258,27 @@ body {
 }
 
 .action-btn {
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 6px;
   border: none;
   cursor: pointer;
   color: #fff;
-  transition: background 0.3s;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn:hover {
+  opacity: 0.85;
 }
 
 .action-btn.edit {
   background-color: #f59e0b;
 }
 
-.action-btn.edit:hover {
-  background-color: #d97706;
-}
-
 .action-btn.delete {
   background-color: var(--error);
-}
-
-.action-btn.delete:hover {
-  background-color: #dc2626;
 }
 
 /* --- MODAL (FORM) --- */
@@ -287,7 +288,8 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -300,7 +302,7 @@ body {
   border-radius: 12px;
   width: 450px;
   max-width: 90%;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   position: relative;
 }
 
@@ -318,6 +320,7 @@ body {
 .modal-title {
   margin: 0 0 25px 0;
   font-size: 20px;
+  color: #0f172a;
 }
 
 .form-group {
@@ -329,6 +332,7 @@ body {
   margin-bottom: 6px;
   font-size: 14px;
   font-weight: 500;
+  color: #334155;
 }
 
 .form-input {
@@ -356,8 +360,8 @@ body {
 }
 
 .modal-btn.cancelar {
-  background-color: #f3f4f6;
-  color: #333;
+  background-color: #f1f5f9;
+  color: #334155;
 }
 
 .modal-btn.salvar {
@@ -382,7 +386,7 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: var(--bg-color); /* Usa o azul clássico do seu projeto */
+  background-color: #0f172a; /* Mantém o azul escuro elegante no fundo do login */
   padding: 20px;
 }
 
@@ -400,7 +404,7 @@ body {
   font-size: 26px;
   font-weight: 800;
   letter-spacing: 1px;
-  color: var(--dark-blue);
+  color: #0f172a;
   margin: 0 0 5px 0;
 }
 
@@ -445,7 +449,7 @@ body {
 
 .login-input {
   width: 100%;
-  padding: 14px 14px 14px 40px; /* Espaço para o ícone na esquerda */
+  padding: 14px 14px 14px 40px;
   border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 14px;
@@ -464,7 +468,7 @@ body {
 .login-btn-submit {
   width: 100%;
   padding: 14px;
-  background-color: var(--dark-blue); /* Botão preto/escuro como no protótipo */
+  background-color: #0f172a;
   color: var(--white);
   border: none;
   border-radius: 10px;
@@ -476,7 +480,7 @@ body {
 }
 
 .login-btn-submit:hover {
-  background-color: #1f2937;
+  background-color: #1e293b;
 }
 
 .login-footer-links {

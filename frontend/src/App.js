@@ -49,7 +49,7 @@ function App() {
       <aside className="sidebar">
         <div className="sidebar-title">
           <span className="search-icon-placeholder"></span>
-          SobMedida
+          SobMdida
         </div>
         
         <nav className="sidebar-menu">

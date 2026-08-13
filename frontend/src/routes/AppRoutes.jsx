@@ -5,32 +5,32 @@ import Login from '../pages/Login.jsx';
 import Register from '../pages/Register.jsx';
 import Clientes from '../pages/Clientes.jsx'; 
 import Produtos from '../pages/Produtos.jsx'; 
-import Categorias from '../pages/Categorias.jsx'; // Importado corretamente aqui!
+import Categorias from '../pages/Categorias.jsx';
+import Pedidos from '../pages/Pedidos.jsx';
+import Relatorios from '../pages/Relatorios.jsx';
+import Loja from '../pages/Loja.jsx'; // 1. Import da Loja
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rota principal que carrega a Sidebar e Topbar (App.js) */}
+        {/* Painel Administrativo com Sidebar */}
         <Route path="/" element={<App />}>
-          
-          {/* Sub-rota 1: Listagem dedicada de Clientes */}
           <Route path="clientes" element={<Clientes />} />
-          
-          {/* Sub-rota 2: Catálogo de Produtos */}
           <Route path="produtos" element={<Produtos />} />
-
-          {/* Sub-rota 3: Gerenciamento de Categorias (Unificado aqui dentro!) */}
           <Route path="categorias" element={<Categorias />} />
-          
+          <Route path="pedidos" element={<Pedidos />} />
+          <Route path="relatorios" element={<Relatorios />} />
         </Route>
+
+        {/* Página Pública da Loja */}
+        <Route path="/loja" element={<Loja />} />
         
-        {/* Rotas de Autenticação fora do painel administrativo */}
+        {/* Rotas de Autenticação */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Captura qualquer rota inválida e redireciona de volta para a Home */}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/clientes" replace />} />
       </Routes>
     </BrowserRouter>
   );

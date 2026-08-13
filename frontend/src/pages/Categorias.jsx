@@ -1,6 +1,6 @@
 // frontend/src/pages/Categorias.jsx
 import { useEffect, useState } from 'react';
-import { FaTags, FaPlus, FaTrash, FaEdit } from 'react-icons/fa'; // Importação corrigida aqui!
+import { FaPlus, FaTrash, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 export default function Categorias() {
   const [categorias, setCategorias] = useState([]);
@@ -9,14 +9,26 @@ export default function Categorias() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [erro, setErro] = useState('');
 
+  // ESTADOS DE PAGINAÇÃO (10 por página)
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const itensPorPagina = 10;
+
   // 1. LISTAR CATEGORIAS
   async function listarCategorias() {
     try {
       const res = await fetch('http://localhost:3000/categories');
       const data = await res.json();
-      setCategorias(data);
+      // Garantia para EVITAR erro de .map is not a function
+      if (Array.isArray(data)) {
+        setCategorias(data);
+      } else if (data && Array.isArray(data.categories)) {
+        setCategorias(data.categories);
+      } else {
+        setCategorias([]);
+      }
     } catch (err) {
       setErro('Erro ao carregar categorias.');
+      setCategorias([]);
     }
   }
 
@@ -56,7 +68,6 @@ export default function Categorias() {
         const data = await res.json();
 
         if (!res.ok) {
-          // Exibe o aviso se houver produtos amarrados nela
           alert(data.error || 'Não foi possível excluir a categoria.');
           return;
         }
@@ -67,6 +78,12 @@ export default function Categorias() {
       }
     }
   }
+
+  // --- LÓGICA DE PAGINAÇÃO ---
+  const listaCategorias = Array.isArray(categorias) ? categorias : [];
+  const totalPaginas = Math.ceil(listaCategorias.length / itensPorPagina) || 1;
+  const indiceInicial = (paginaAtual - 1) * itensPorPagina;
+  const categoriasPaginadas = listaCategorias.slice(indiceInicial, indiceInicial + itensPorPagina);
 
   useEffect(() => { 
     listarCategorias(); 
@@ -87,28 +104,26 @@ export default function Categorias() {
 
       {erro && <p className="error-message">{erro}</p>}
 
-      {/* TABELA DE LISTAGEM */}
+      {/* TABELA DE LISTAGEM SEM A COLUNA ID */}
       <div className="user-list-card">
         <table className="user-table">
           <thead>
             <tr>
-              <th>ID</th>
               <th>Nome da Categoria</th>
               <th>Descrição</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {categorias.length === 0 ? (
+            {listaCategorias.length === 0 ? (
               <tr>
-                <td colSpan="4" style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                <td colSpan="3" style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
                   Nenhuma categoria cadastrada.
                 </td>
               </tr>
             ) : (
-              categorias.map(cat => (
+              categoriasPaginadas.map(cat => (
                 <tr key={cat.id}>
-                  <td className="user-id">{cat.id}</td>
                   <td className="user-name" style={{ fontWeight: '600' }}>{cat.nome}</td>
                   <td>{cat.descricao || 'Sem descrição'}</td>
                   <td className="table-actions">
@@ -125,6 +140,43 @@ export default function Categorias() {
             )}
           </tbody>
         </table>
+
+        {/* BARRA DE PAGINAÇÃO PADRONIZADA (MAX 10 ITENS POR PÁGINA) */}
+        {listaCategorias.length > 0 && (
+          <div className="pagination-container">
+            <span className="pagination-info">
+              Exibindo {indiceInicial + 1} a {Math.min(indiceInicial + itensPorPagina, listaCategorias.length)} de {listaCategorias.length} categorias
+            </span>
+
+            <div className="pagination-buttons">
+              <button 
+                className="page-btn" 
+                onClick={() => setPaginaAtual(prev => Math.max(prev - 1, 1))}
+                disabled={paginaAtual === 1}
+              >
+                <FaChevronLeft style={{ fontSize: '10px', marginRight: '4px' }} /> Anterior
+              </button>
+
+              {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
+                <button
+                  key={num}
+                  className={`page-btn ${paginaAtual === num ? 'active' : ''}`}
+                  onClick={() => setPaginaAtual(num)}
+                >
+                  {num}
+                </button>
+              ))}
+
+              <button 
+                className="page-btn" 
+                onClick={() => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas))}
+                disabled={paginaAtual === totalPaginas}
+              >
+                Próxima <FaChevronRight style={{ fontSize: '10px', marginLeft: '4px' }} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* MODAL DE CADASTRO */}

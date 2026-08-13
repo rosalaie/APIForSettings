@@ -6,23 +6,30 @@ import Register from '../pages/Register.jsx';
 import Clientes from '../pages/Clientes.jsx'; 
 import Produtos from '../pages/Produtos.jsx'; 
 import Categorias from '../pages/Categorias.jsx';
+import Pedidos from '../pages/Pedidos.jsx';
+import Relatorios from '../pages/Relatorios.jsx';
+import Loja from '../pages/Loja.jsx'; // 1. Import da Loja
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rota principal que carrega o layout administrativo */}
+        {/* Painel Administrativo com Sidebar */}
         <Route path="/" element={<App />}>
           <Route path="clientes" element={<Clientes />} />
           <Route path="produtos" element={<Produtos />} />
           <Route path="categorias" element={<Categorias />} />
+          <Route path="pedidos" element={<Pedidos />} />
+          <Route path="relatorios" element={<Relatorios />} />
         </Route>
+
+        {/* Página Pública da Loja */}
+        <Route path="/loja" element={<Loja />} />
         
-        {/* Rotas externas de Autenticação */}
+        {/* Rotas de Autenticação */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Redirecionamento padrão para rotas não encontradas */}
         <Route path="*" element={<Navigate to="/clientes" replace />} />
       </Routes>
     </BrowserRouter>

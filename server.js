@@ -194,12 +194,14 @@ app.get('/products/:id', async (req, res) => {
 });
 
 // Cadastrar novo produto
+// Cadastrar um novo produto (sem exigir estoque)
 app.post('/products', async (req, res) => {
   try {
     const { nome, descricao, preco, estoque, imagemUrl, categoriaId } = req.body;
 
-    if (!nome || preco === undefined || estoque === undefined || !categoriaId) {
-      return res.status(400).json({ error: 'Nome, preço, estoque e categoria são obrigatórios.' });
+    // Removemos a verificação estrita do estoque
+    if (!nome || preco === undefined || !categoriaId) {
+      return res.status(400).json({ error: 'Nome, preço e categoria são obrigatórios.' });
     }
 
     const novoProduto = await prisma.products.create({
@@ -207,7 +209,7 @@ app.post('/products', async (req, res) => {
         nome,
         descricao,
         preco: parseFloat(preco),
-        estoque: parseInt(estoque),
+        estoque: estoque !== undefined ? parseInt(estoque) : 0, // Padrão 0 se não enviado
         imagemUrl,
         categoriaId: parseInt(categoriaId)
       }
@@ -231,7 +233,7 @@ app.put('/products/:id', async (req, res) => {
         nome,
         descricao,
         preco: parseFloat(preco),
-        estoque: parseInt(estoque),
+        ...(estoque !== undefined && { estoque: parseInt(estoque) }),
         ...(imagemUrl && { imagemUrl }),
         ...(categoriaId && { categoriaId: parseInt(categoriaId) })
       }
@@ -310,6 +312,106 @@ app.delete('/categories/:id', async (req, res) => {
     res.status(500).json({ 
       error: 'Não é possível excluir esta categoria pois existem produtos associados a ela.' 
     });
+  }
+});
+
+// ==========================================
+// 4. ROTAS DE PEDIDOS (Sprint Pedidos)
+// ==========================================
+
+// Listar todos os pedidos
+app.get('/orders', async (req, res) => {
+  try {
+    const pedidos = await prisma.orders.findMany({
+      include: {
+        cliente: { select: { id: true, nome: true, email: true, telefone: true } },
+        itens: { include: { produto: { select: { id: true, nome: true } } } }
+      },
+      orderBy: { id: 'desc' }
+    });
+    res.json(pedidos);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar lista de pedidos.' });
+  }
+});
+
+// Criar novo pedido (Manual / Site)
+app.post('/orders', async (req, res) => {
+  try {
+    const { clienteId, itens, formaPagamento, observacoes, origem } = req.body;
+
+    if (!clienteId || !itens || !Array.isArray(itens) || itens.length === 0) {
+      return res.status(400).json({ error: 'Selecione um cliente e ao menos um produto.' });
+    }
+
+    // Calcula o total e prepara os itens
+    let totalCalculado = 0;
+    const itensParaInserir = [];
+
+    for (const item of itens) {
+      const prod = await prisma.products.findUnique({ where: { id: Number(item.produtoId) } });
+      if (!prod) {
+        return res.status(400).json({ error: `Produto ID ${item.produtoId} não encontrado.` });
+      }
+
+      const subtotal = prod.preco * item.quantidade;
+      totalCalculado += subtotal;
+
+      itensParaInserir.push({
+        produtoId: prod.id,
+        quantidade: parseInt(item.quantidade),
+        precoUnit: prod.preco
+      });
+    }
+
+    const novoPedido = await prisma.orders.create({
+      data: {
+        clienteId: parseInt(clienteId),
+        total: totalCalculado,
+        formaPagamento: formaPagamento || 'Dinheiro',
+        origem: origem || 'BALCAO',
+        observacoes,
+        itens: { create: itensParaInserir }
+      },
+      include: {
+        cliente: { select: { nome: true } },
+        itens: true
+      }
+    });
+
+    res.status(201).json(novoPedido);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao registrar pedido.' });
+  }
+});
+
+// Atualizar Status do Pedido
+app.patch('/orders/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const pedidoAtualizado = await prisma.orders.update({
+      where: { id: Number(id) },
+      data: { status }
+    });
+
+    res.json(pedidoAtualizado);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao atualizar status do pedido.' });
+  }
+});
+
+// Cancelar/Deletar Pedido
+app.delete('/orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.orders.delete({ where: { id: Number(id) } });
+    res.json({ message: 'Pedido excluído com sucesso!' });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao excluir pedido.' });
   }
 });
 

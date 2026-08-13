@@ -1,7 +1,7 @@
 // frontend/src/App.js
 import './App.css';
 import { useEffect, useState } from 'react';
-import { FaStore, FaUsers, FaBoxOpen, FaTags, FaCog, FaDollarSign, FaShoppingBag } from "react-icons/fa";
+import { FaStore, FaUsers, FaBoxOpen, FaTags, FaChartBar, FaDollarSign, FaShoppingBag } from "react-icons/fa";
 import { Link, Outlet, useLocation } from 'react-router-dom';
 
 function App() {
@@ -11,24 +11,20 @@ function App() {
   
   const location = useLocation();
 
-  // Função para definir o título correto da Topbar dinamicamente
   const obterTituloPagina = () => {
     if (location.pathname === '/clientes') return 'Clientes';
     if (location.pathname === '/produtos') return 'Catálogo de Produtos';
-    if (location.pathname === '/categorias') return 'Categorias'; // Adicionado para a nova aba!
+    if (location.pathname === '/categorias') return 'Categorias';
+    if (location.pathname === '/pedidos') return 'Gestão de Pedidos';
+    if (location.pathname === '/relatorios') return 'Relatórios e Análises';
     return 'Painel de Controle';
   };
 
-  // Carrega os clientes do backend para alimentar a tabela do dashboard e o contador
   async function listarClientes() {
     try {
       setLoading(true);
       const res = await fetch('http://localhost:3000/users');
-
-      if (!res.ok) {
-        throw new Error('Erro ao buscar clientes');
-      }
-
+      if (!res.ok) throw new Error('Erro ao buscar clientes');
       const data = await res.json();
       setClientes(data);
     } catch (err) {
@@ -45,15 +41,14 @@ function App() {
 
   return (
     <div className="app-layout">
-      {/* 1. BARRA LATERAL (SIDEBAR) */}
+      {/* 1. SIDEBAR */}
       <aside className="sidebar">
         <div className="sidebar-title">
           <span className="search-icon-placeholder"></span>
-          SobMdida
+          SOBMDIDA
         </div>
         
         <nav className="sidebar-menu">
-          {/* Aba Dashboard */}
           <Link to="/" className={`menu-item ${location.pathname === '/' ? 'active' : ''}`}>
             <div className='logo'>     
               <FaStore /> 
@@ -61,7 +56,6 @@ function App() {
             </div>
           </Link>
 
-          {/* Aba Clientes */}
           <Link to="/clientes" className={`menu-item ${location.pathname === '/clientes' ? 'active' : ''}`}>
             <div className='logo'>     
               <FaUsers /> 
@@ -69,7 +63,6 @@ function App() {
             </div>
           </Link>
 
-          {/* Aba Produtos */}
           <Link to="/produtos" className={`menu-item ${location.pathname === '/produtos' ? 'active' : ''}`}>
             <div className='logo'>     
               <FaBoxOpen /> 
@@ -77,7 +70,13 @@ function App() {
             </div>
           </Link>
 
-          {/* NOVA ABA: Categorias */}
+          <Link to="/pedidos" className={`menu-item ${location.pathname === '/pedidos' ? 'active' : ''}`}>
+            <div className='logo'>     
+              <FaShoppingBag /> 
+              <span> Pedidos </span>
+            </div>
+          </Link>
+
           <Link to="/categorias" className={`menu-item ${location.pathname === '/categorias' ? 'active' : ''}`}>
             <div className='logo'>     
               <FaTags /> 
@@ -85,12 +84,12 @@ function App() {
             </div>
           </Link>
 
-          <a href="#" className="menu-item">
+          <Link to="/relatorios" className={`menu-item ${location.pathname === '/relatorios' ? 'active' : ''}`}>
             <div className='logo'>     
-              <FaCog /> 
-              <span> Configurações </span>
+              <FaChartBar /> 
+              <span> Relatórios </span>
             </div>
-          </a>
+          </Link>
         </nav>
 
         <div className="sidebar-user">
@@ -102,9 +101,8 @@ function App() {
         </div>
       </aside>
 
-      {/* 2. ÁREA PRINCIPAL */}
+      {/* 2. CONTEÚDO PRINCIPAL */}
       <main className="main-content">
-        {/* TOPO (TOPBAR) */}
         <header className="topbar">
           <div className="topbar-left">
             <button className="icon-btn" title="Menu">☰</button>
@@ -115,19 +113,19 @@ function App() {
           </div>
 
           <div className="topbar-right">
-            <button className="icon-btn">⚙️</button>
+            {/* ÍCONE DA LOJA (Substituiu a Engrenagem) */}
+            <Link to="/loja" className="icon-btn" title="Ver Loja Pública" target="_blank" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+              <FaStore style={{ fontSize: '18px', color: '#3a86c8' }} />
+            </Link>
             <button className="icon-btn" title="Sair">⏻</button>
           </div>
         </header>
 
-        {/* CONTEÚDO DINÂMICO (CONTENT AREA) */}
         <div className="content-area">
-          {/* Validação: Se não estiver na rota raiz "/", renderiza a sub-rota correspondente */}
           {location.pathname !== '/' ? (
             <Outlet />
           ) : (
             <>
-              {/* TÍTULO DA PÁGINA */}
               <div className="page-header">
                 <div>
                   <h2 className="page-title">Olá, Administrador 👋</h2>
@@ -135,7 +133,6 @@ function App() {
                 </div>
               </div>
 
-              {/* 📊 SEÇÃO DE CARDS DE ESTATÍSTICAS */}
               <div className="dashboard-cards" style={styles.cardsContainer}>
                 <div className="card-stat" style={styles.card}>
                   <div style={styles.cardHeader}>
@@ -211,7 +208,6 @@ function App() {
   );
 }
 
-// Estilos adicionais Inline rápidos para manter o design limpo e responsivo
 const styles = {
   cardsContainer: {
     display: 'grid',

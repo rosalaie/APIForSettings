@@ -1,4 +1,6 @@
 /* src/App.css */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&display=swap');
+
 :root {
   --bg-color: #f8fafc; /* Fundo geral neutro e claro */
   --white: #ffffff;
@@ -9,6 +11,7 @@
   --accent-hover: #1d4ed8;
   --border: #e2e8f0;
   --error: #ef4444;
+  --brand-red: #ef4444; /* Vermelho moderno da marca SOBMDIDA */
 }
 
 body {
@@ -25,6 +28,26 @@ body {
   min-height: 100vh;
 }
 
+/* --- LOGO ESTILIZADA SOBMDIDA --- */
+.logo-brand {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  user-select: none;
+  display: flex;
+  align-items: center;
+}
+
+.logo-brand .logo-sob {
+  color: #ffffff; /* SOB em branco */
+}
+
+.logo-brand .logo-mdida {
+  color: var(--brand-red); /* MDIDA em vermelho */
+}
+
 /* --- SIDEBAR --- */
 .sidebar {
   width: 250px;
@@ -38,8 +61,6 @@ body {
 .sidebar-title {
   display: flex;
   align-items: center;
-  font-size: 20px;
-  font-weight: 600;
   margin-bottom: 40px;
 }
 
@@ -61,6 +82,12 @@ body {
 
 .menu-item:hover, .menu-item.active {
   background-color: var(--accent);
+}
+
+.menu-item .logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 /* User avatar */
@@ -151,9 +178,12 @@ body {
 }
 
 .page-title {
-  color: #0f172a; /* Grafite escuro profissional */
-  font-size: 24px;
-  font-weight: 700;
+  color: #0f172a;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  text-transform: uppercase; /* Força títulos em maiúsculo */
+  letter-spacing: 0.5px;
   margin: 0 0 5px 0;
 }
 
@@ -191,6 +221,7 @@ body {
   position: relative;
   margin-bottom: 25px;
 }
+
 /* Busca Destacada */
 .search-container.destacado {
   background-color: #ffffff;
@@ -322,7 +353,7 @@ body {
 }
 
 .action-btn.edit {
-  background-color: #f59e0b;
+  background-color: #2563eb;
 }
 
 .action-btn.delete {

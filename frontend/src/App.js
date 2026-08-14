@@ -1,7 +1,7 @@
 // frontend/src/App.js
 import './App.css';
 import { useEffect, useState } from 'react';
-import { FaStore, FaUsers, FaBoxOpen, FaTags, FaChartBar, FaDollarSign, FaShoppingBag, FaSearch } from "react-icons/fa";
+import { FaStore, FaUsers, FaBoxOpen, FaTags, FaChartBar, FaDollarSign, FaShoppingBag, FaSearch, FaTachometerAlt } from "react-icons/fa";
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 function App() {
@@ -45,12 +45,12 @@ function App() {
   };
 
   const obterTituloPagina = () => {
-    if (location.pathname === '/clientes') return 'Clientes';
-    if (location.pathname === '/produtos') return 'Catálogo de Produtos';
-    if (location.pathname === '/categorias') return 'Categorias';
-    if (location.pathname === '/pedidos') return 'Gestão de Pedidos';
-    if (location.pathname === '/relatorios') return 'Relatórios e Análises';
-    return 'Painel de Controle';
+    if (location.pathname === '/clientes') return 'CLIENTES';
+    if (location.pathname === '/produtos') return 'CATÁLOGO DE PRODUTOS';
+    if (location.pathname === '/categorias') return 'CATEGORIAS';
+    if (location.pathname === '/pedidos') return 'GESTÃO DE PEDIDOS';
+    if (location.pathname === '/relatorios') return 'RELATÓRIOS E ANÁLISES';
+    return 'PAINEL DE CONTROLE';
   };
 
   async function carregarDadosDashboard() {
@@ -105,13 +105,16 @@ function App() {
       {/* 1. SIDEBAR */}
       <aside className="sidebar">
         <div className="sidebar-title">
-          SOBMDIDA
+          <div className="logo-brand">
+            <span className="logo-sob">SOB</span>
+            <span className="logo-mdida">MDIDA</span>
+          </div>
         </div>
         
         <nav className="sidebar-menu">
           <Link to="/" className={`menu-item ${location.pathname === '/' ? 'active' : ''}`}>
             <div className='logo'>     
-              <FaChartBar /> 
+              <FaTachometerAlt /> 
               <span> Dashboard </span>
             </div>
           </Link>
@@ -202,8 +205,8 @@ function App() {
             <>
               <div className="page-header" style={{ marginBottom: '20px' }}>
                 <div>
-                  <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
-                    Olá, {usuarioLogado?.nome ? usuarioLogado.nome.split(' ')[0] : 'Administrador'} 👋
+                  <h2 style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'Montserrat, sans-serif', color: '#0f172a', margin: 0, textTransform: 'uppercase' }}>
+                    OLÁ, {usuarioLogado?.nome ? usuarioLogado.nome.split(' ')[0] : 'ADMINISTRADOR'} 👋
                   </h2>
                   <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
                     Acompanhe em tempo real as métricas e clientes do seu e-commerce.
@@ -266,8 +269,8 @@ function App() {
 
               {/* TABELA DE CLIENTES */}
               <div style={styles.tableCard}>
-                <h3 style={{ margin: '0 0 15px 0', color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>
-                  Últimos Clientes Cadastrados
+                <h3 style={{ margin: '0 0 15px 0', color: '#0f172a', fontSize: '16px', fontWeight: '800', fontFamily: 'Montserrat, sans-serif', textTransform: 'uppercase' }}>
+                  ÚLTIMOS CLIENTES CADASTRADOS
                 </h3>
 
                 <div style={styles.searchBox}>
@@ -330,10 +333,12 @@ const styles = {
   },
   topbarTitle: {
     color: '#0f172a',
-    fontSize: '20px',
+    fontFamily: 'Montserrat, sans-serif',
+    fontSize: '18px',
     fontWeight: '800',
     margin: 0,
-    letterSpacing: '-0.3px'
+    letterSpacing: '0.5px',
+    textTransform: 'uppercase'
   },
   storeBtn: {
     display: 'inline-flex',
@@ -378,7 +383,7 @@ const styles = {
     marginBottom: '12px'
   },
   cardTitle: {
-    fontSize: '13px',
+    fontSize: '12px',
     fontWeight: '700',
     color: '#64748b',
     textTransform: 'uppercase',

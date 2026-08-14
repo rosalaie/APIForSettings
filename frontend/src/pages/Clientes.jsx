@@ -1,310 +1,208 @@
-// src/pages/Clientes.jsx
-import { useEffect, useState } from 'react';
-import { FaPlus, FaSearch, FaChevronLeft, FaChevronRight, FaUsers, FaTrash } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes } from 'react-icons/fa';
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [mostrarForm, setMostrarForm] = useState(false);
-  const [erro, setErro] = useState('');
   const [busca, setBusca] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [modalAberto, setModalAberto] = useState(false);
+  const [clienteEditando, setClienteEditando] = useState(null);
 
-  // ESTADOS DO FORMULÁRIO MANUAL (SEM SENHA)
+  // Form State
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [cpf, setCpf] = useState('');
-  const [rua, setRua] = useState('');
-  const [numero, setNumero] = useState('');
-  const [bairro, setBairro] = useState('');
   const [cidade, setCidade] = useState('');
-  const [cep, setCep] = useState('');
 
-  // PAGINAÇÃO (10 por página)
-  const [paginaAtual, setPaginaAtual] = useState(1);
-  const itensPorPagina = 10;
-
-  async function listarClientes() {
+  const carregarClientes = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3000/clients'); // ou /users conforme seu backend
-      const data = await res.json();
-      
-      if (Array.isArray(data)) {
+      const res = await fetch('http://localhost:3000/users');
+      if (res.ok) {
+        const data = await res.json();
         setClientes(data);
-      } else if (data && Array.isArray(data.clients)) {
-        setClientes(data.clients);
-      } else {
-        setClientes([]);
       }
     } catch (err) {
-      console.error(err);
-      setErro('Erro ao carregar lista de clientes.');
-      setClientes([]);
+      console.error("Erro ao carregar clientes", err);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  function abrirModalNovoCliente() {
+  useEffect(() => {
+    carregarClientes();
+  }, []);
+
+  const abrirModalNovo = () => {
+    setClienteEditando(null);
     setNome('');
     setEmail('');
     setTelefone('');
-    setCpf('');
-    setRua('');
-    setNumero('');
-    setBairro('');
     setCidade('');
-    setCep('');
-    setErro('');
-    setMostrarForm(true);
-  }
+    setModalAberto(true);
+  };
 
-  async function handleSalvarCliente(e) {
-  e.preventDefault();
-  setErro('');
+  const abrirModalEditar = (cliente) => {
+    setClienteEditando(cliente);
+    setNome(cliente.nome || '');
+    setEmail(cliente.email || '');
+    setTelefone(cliente.telefone || '');
+    setCidade(cliente.cidade || '');
+    setModalAberto(true);
+  };
 
-  try {
-    const res = await fetch('http://localhost:3000/clients', { // Garanta que a rota no backend seja /clients
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nome,
-        email: email || null,
-        telefone,
-        cpf: cpf || null,
-        rua: rua || null,
-        numero: numero || null,
-        bairro: bairro || null,
-        cidade: cidade || null,
-        cep: cep || null,
-        origem: 'BALCAO'
-      })
-    });
+  const salvarCliente = async (e) => {
+    e.preventDefault();
+    const payload = { nome, email, telefone, cidade };
 
-    // Trata retornos que não sejam JSON (evita a tela vermelha/erro do JSON.parse)
-    const contentType = res.headers.get('content-type');
-    let data;
-    if (contentType && contentType.includes('application/json')) {
-      data = await res.json();
-    } else {
-      const text = await res.text();
-      throw new Error(`Erro ${res.status}: Servidor não retornou JSON.`);
-    }
-
-    if (!res.ok) {
-      throw new Error(data.error || 'Erro ao cadastrar cliente.');
-    }
-
-    setMostrarForm(false);
-    listarClientes();
-  } catch (err) {
-    setErro(err.message || 'Erro de conexão com o servidor.');
-  }
-}
-
-  async function handleDeletar(id, nomeCliente) {
-    if (window.confirm(`Tem certeza que deseja remover o cliente "${nomeCliente}"?`)) {
-      try {
-        const res = await fetch(`http://localhost:3000/clients/${id}`, { method: 'DELETE' });
-        if (res.ok) listarClientes();
-      } catch (err) {
-        alert('Erro ao excluir cliente.');
+    try {
+      if (clienteEditando) {
+        // Atualizar Cliente (PUT / PATCH)
+        const res = await fetch(`http://localhost:3000/users/${clienteEditando.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          alert('Cliente atualizado com sucesso!');
+        }
+      } else {
+        // Criar Cliente
+        const res = await fetch('http://localhost:3000/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          alert('Cliente criado com sucesso!');
+        }
       }
+      setModalAberto(false);
+      carregarClientes();
+    } catch (err) {
+      alert('Erro ao salvar cliente.');
     }
-  }
+  };
 
-  // Lógica de Filtro e Paginação
-  const listaClientes = Array.isArray(clientes) ? clientes : [];
-  const clientesFiltrados = listaClientes.filter(c =>
-    (c.nome && c.nome.toLowerCase().includes(busca.toLowerCase())) ||
-    (c.email && c.email.toLowerCase().includes(busca.toLowerCase())) ||
-    (c.telefone && c.telefone.includes(busca))
+  const excluirCliente = async (id) => {
+    if (!window.confirm('Tem certeza que deseja excluir este cliente?')) return;
+    try {
+      const res = await fetch(`http://localhost:3000/users/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setClientes(clientes.filter(c => c.id !== id));
+      }
+    } catch (err) {
+      alert('Erro ao excluir cliente.');
+    }
+  };
+
+  const clientesFiltrados = clientes.filter(c =>
+    c.nome?.toLowerCase().includes(busca.toLowerCase()) ||
+    c.email?.toLowerCase().includes(busca.toLowerCase())
   );
 
-  const totalPaginas = Math.ceil(clientesFiltrados.length / itensPorPagina) || 1;
-  const indiceInicial = (paginaAtual - 1) * itensPorPagina;
-  const clientesPaginados = clientesFiltrados.slice(indiceInicial, indiceInicial + itensPorPagina);
-
-  useEffect(() => {
-    setPaginaAtual(1);
-  }, [busca]);
-
-  useEffect(() => {
-    listarClientes();
-  }, []);
-
   return (
-    <>
-      {/* CABEÇALHO PADRONIZADO */}
-      <div className="page-header">
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
-          <h2 className="page-title">Gestão de Clientes</h2>
-          <p className="page-subtitle">Base de clientes cadastrados via e-commerce e vendas de balcão.</p>
+          <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Gestão de Clientes</h2>
+          <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>Base de clientes cadastrados no sistema.</p>
         </div>
-        <button className="novo-btn" onClick={abrirModalNovoCliente}>
-          <FaPlus style={{ marginRight: '8px', fontSize: '12px' }} /> Novo Cliente
+        <button
+          onClick={abrirModalNovo}
+          style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          <FaPlus /> Novo Cliente
         </button>
       </div>
 
-      <div className="user-list-card">
-        {/* CAIXA DE BUSCA */}
-        <div className="search-container destacado">
-          <FaSearch className="search-icon-placeholder" style={{ color: '#2563eb' }} />
-          <input 
-            type="text" 
-            className="search-input" 
-            placeholder="🔍 Buscar cliente por nome, e-mail ou telefone..." 
+      <div style={{ background: '#fff', padding: '24px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', marginBottom: '20px' }}>
+          <FaSearch style={{ color: '#94a3b8', marginRight: '10px' }} />
+          <input
+            type="text"
+            placeholder="Buscar cliente por nome, e-mail..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
+            style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
           />
         </div>
 
         {loading ? (
-          <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>Carregando clientes...</p>
-        ) : clientesFiltrados.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-            <FaUsers style={{ fontSize: '48px', marginBottom: '10px' }} />
-            <p>Nenhum cliente encontrado.</p>
-          </div>
+          <p style={{ textAlign: 'center', color: '#64748b', padding: '20px' }}>Carregando...</p>
         ) : (
-          <>
-            {/* TABELA SEM COLUNA DE ID */}
-            <table className="user-table">
-              <thead>
-                <tr>
-                  <th>Nome do Cliente</th>
-                  <th>Contato (E-mail / Telefone)</th>
-                  <th>Cidade</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clientesPaginados.map(cliente => (
-                  <tr key={cliente.id}>
-                    <td className="user-name" style={{ fontWeight: '600' }}>
-                      {cliente.nome}
-                      {cliente.cpf && <small style={{ display: 'block', color: '#64748b', fontWeight: 'normal', fontSize: '11px' }}>CPF: {cliente.cpf}</small>}
-                    </td>
-                    <td>
-                      <span className="user-email">{cliente.email || 'Sem e-mail'}</span>
-                      {cliente.telefone && <small style={{ display: 'block', color: '#64748b', fontSize: '11px' }}>{cliente.telefone}</small>}
-                    </td>
-                    <td style={{ color: '#475569', fontSize: '14px' }}>
-                      {cliente.cidade ? `${cliente.cidade}` : 'Não informada'}
-                    </td>
-                    <td className="table-actions">
-                      <button className="action-btn delete" title="Excluir" onClick={() => handleDeletar(cliente.id, cliente.nome)}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left' }}>
+                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>NOME DO CLIENTE</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>CONTATO</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>CIDADE</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b', textAlign: 'right' }}>AÇÕES</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clientesFiltrados.map(c => (
+                <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '14px 16px', fontWeight: '600', color: '#0f172a' }}>{c.nome}</td>
+                  <td style={{ padding: '14px 16px', color: '#475569' }}>{c.email} {c.telefone && `(${c.telefone})`}</td>
+                  <td style={{ padding: '14px 16px', color: '#64748b' }}>{c.cidade || 'Não informada'}</td>
+                  <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                      <button
+                        onClick={() => abrirModalEditar(c)}
+                        title="Editar Cliente"
+                        style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer' }}
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => excluirCliente(c.id)}
+                        title="Excluir Cliente"
+                        style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer' }}
+                      >
                         <FaTrash />
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* PAGINAÇÃO PADRONIZADA */}
-            <div className="pagination-container">
-              <span className="pagination-info">
-                Exibindo {indiceInicial + 1} a {Math.min(indiceInicial + itensPorPagina, clientesFiltrados.length)} de {clientesFiltrados.length} clientes
-              </span>
-
-              <div className="pagination-buttons">
-                <button 
-                  className="page-btn" 
-                  onClick={() => setPaginaAtual(prev => Math.max(prev - 1, 1))}
-                  disabled={paginaAtual === 1}
-                >
-                  <FaChevronLeft style={{ fontSize: '10px', marginRight: '4px' }} /> Anterior
-                </button>
-
-                {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
-                  <button
-                    key={num}
-                    className={`page-btn ${paginaAtual === num ? 'active' : ''}`}
-                    onClick={() => setPaginaAtual(num)}
-                  >
-                    {num}
-                  </button>
-                ))}
-
-                <button 
-                  className="page-btn" 
-                  onClick={() => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas))}
-                  disabled={paginaAtual === totalPaginas}
-                >
-                  Próxima <FaChevronRight style={{ fontSize: '10px', marginLeft: '4px' }} />
-                </button>
-              </div>
-            </div>
-          </>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
-      {/* MODAL DE CADASTRO MANUAL DE CLIENTE */}
-      {mostrarForm && (
-        <div className="modal-overlay">
-          <form className="modal-content" style={{ width: '550px' }} onSubmit={handleSalvarCliente}>
-            <button type="button" className="modal-close-btn" onClick={() => setMostrarForm(false)}>×</button>
-            <h3 className="modal-title">Cadastrar Novo Cliente (Balcão)</h3>
-
-            {erro && <p style={{ color: '#ef4444', fontSize: '13px', background: '#fef2f2', padding: '8px', borderRadius: '6px', marginBottom: '15px' }}>{erro}</p>}
-            
-            <div className="form-group">
-              <label className="form-label">Nome Completo *</label>
-              <input type="text" className="form-input" placeholder="Ex: Maria Oliveira" value={nome} onChange={e => setNome(e.target.value)} required />
+      {/* MODAL EDITAR / CRIAR */}
+      {modalAberto && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '450px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, color: '#0f172a' }}>{clienteEditando ? 'Editar Cliente' : 'Novo Cliente'}</h3>
+              <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalAberto(false)} />
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div className="form-group">
-                <label className="form-label">E-mail</label>
-                <input type="email" className="form-input" placeholder="cliente@email.com" value={email} onChange={e => setEmail(e.target.value)} />
+            <form onSubmit={salvarCliente} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Nome</label>
+                <input type="text" required value={nome} onChange={e => setNome(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
               </div>
-
-              <div className="form-group">
-                <label className="form-label">Telefone / WhatsApp *</label>
-                <input type="text" className="form-input" placeholder="(42) 99999-9999" value={telefone} onChange={e => setTelefone(e.target.value)} required />
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>E-mail</label>
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
               </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">CPF</label>
-              <input type="text" className="form-input" placeholder="000.000.000-00" value={cpf} onChange={e => setCpf(e.target.value)} />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
-              <div className="form-group">
-                <label className="form-label">Rua / Endereço</label>
-                <input type="text" className="form-input" placeholder="Rua XV de Novembro" value={rua} onChange={e => setRua(e.target.value)} />
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Telefone</label>
+                <input type="text" value={telefone} onChange={e => setTelefone(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
               </div>
-              <div className="form-group">
-                <label className="form-label">Número</label>
-                <input type="text" className="form-input" placeholder="123" value={numero} onChange={e => setNumero(e.target.value)} />
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Cidade</label>
+                <input type="text" value={cidade} onChange={e => setCidade(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
               </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-              <div className="form-group">
-                <label className="form-label">Bairro</label>
-                <input type="text" className="form-input" placeholder="Centro" value={bairro} onChange={e => setBairro(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Cidade</label>
-                <input type="text" className="form-input" placeholder="Ponta Grossa" value={cidade} onChange={e => setCidade(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">CEP</label>
-                <input type="text" className="form-input" placeholder="84000-000" value={cep} onChange={e => setCep(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="modal-actions">
-              <button type="button" className="modal-btn cancelar" onClick={() => setMostrarForm(false)}>Cancelar</button>
-              <button type="submit" className="modal-btn salvar">Salvar Cliente</button>
-            </div>
-          </form>
+              <button type="submit" style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer', marginTop: '10px' }}>
+                Salvar Alterações
+              </button>
+            </form>
+          </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

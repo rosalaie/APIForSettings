@@ -49,7 +49,6 @@ export default function Produtos() {
       const res = await fetch('http://localhost:3000/categories');
       if (!res.ok) throw new Error();
       const data = await res.json();
-      // Garantia para EVITAR o erro "map is not a function"
       if (Array.isArray(data)) {
         setCategorias(data);
       } else if (data && Array.isArray(data.categories)) {
@@ -243,33 +242,33 @@ export default function Produtos() {
         ) : (
           <>
             <table className="user-table">
-  <thead>
-    <tr>
-      <th>Nome / Categoria</th>
-      <th>Preço</th>
-      <th>Ações</th>
-    </tr>
-  </thead>
-  <tbody>
-    {produtosPaginados.map(produto => (
-      <tr key={produto.id}>
-        <td className="user-name" style={{ fontWeight: '600' }}>
-          {produto.nome} 
-          <small style={{ display: 'block', color: '#64748b', fontWeight: 'normal', fontSize: '11px' }}>
-            Categoria: {produto.categoria?.nome || 'Nenhuma'}
-          </small>
-        </td>
-        <td style={{ color: '#10b981', fontWeight: '600' }}>
-          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.preco)}
-        </td>
-        <td className="table-actions">
-          <button className="action-btn edit" title="Editar" onClick={() => prepararEdicao(produto)}><FaEdit /></button>
-          <button className="action-btn delete" title="Excluir" onClick={() => excluirProduto(produto.id, produto.nome)}><FaTrash /></button>
-        </td>
-      </tr>
-    ))}
-  </tbody>
-</table>
+              <thead>
+                <tr>
+                  <th>Nome / Categoria</th>
+                  <th>Preço</th>
+                  <th style={{ textAlign: 'right' }}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {produtosPaginados.map(produto => (
+                  <tr key={produto.id}>
+                    <td className="user-name" style={{ fontWeight: '600' }}>
+                      {produto.nome} 
+                      <small style={{ display: 'block', color: '#64748b', fontWeight: 'normal', fontSize: '11px' }}>
+                        Categoria: {produto.categoria?.nome || 'Nenhuma'}
+                      </small>
+                    </td>
+                    <td style={{ color: '#10b981', fontWeight: '600' }}>
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.preco)}
+                    </td>
+                    <td className="table-actions" style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                      <button className="action-btn edit" title="Editar" onClick={() => prepararEdicao(produto)}><FaEdit /></button>
+                      <button className="action-btn delete" title="Excluir" onClick={() => excluirProduto(produto.id, produto.nome)}><FaTrash /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
             {/* BARRA DE PAGINAÇÃO (MAX 10 ITENS POR PÁGINA) */}
             <div className="pagination-container">

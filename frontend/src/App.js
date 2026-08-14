@@ -2,7 +2,7 @@
 import './App.css';
 import { useEffect, useState } from 'react';
 import { FaStore, FaUsers, FaBoxOpen, FaTags, FaChartBar, FaDollarSign, FaShoppingBag, FaSearch } from "react-icons/fa";
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 function App() {
   const [clientes, setClientes] = useState([]);
@@ -11,8 +11,38 @@ function App() {
   const [busca, setBusca] = useState('');
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(true);
-  
+  const [usuarioLogado, setUsuarioLogado] = useState(null);
+
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Função para pegar as iniciais do nome para o Avatar da Sidebar
+  const obterIniciais = (nome) => {
+    if (!nome) return 'AD';
+    const partes = nome.trim().split(' ');
+    if (partes.length === 1) return partes[0].substring(0, 2).toUpperCase();
+    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+  };
+
+  // Carrega o usuário autenticado e verifica sessão
+  useEffect(() => {
+    const userStorage = localStorage.getItem('user');
+    if (!userStorage) {
+      // Se não estiver logado, redireciona para a tela de login
+      navigate('/login');
+    } else {
+      setUsuarioLogado(JSON.parse(userStorage));
+    }
+  }, [navigate]);
+
+  // Função REAL de LOGOUT
+  const handleLogout = () => {
+    if (window.confirm('Deseja realmente sair do sistema?')) {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      navigate('/login');
+    }
+  };
 
   const obterTituloPagina = () => {
     if (location.pathname === '/clientes') return 'Clientes';
@@ -26,7 +56,6 @@ function App() {
   async function carregarDadosDashboard() {
     try {
       setLoading(true);
-      // Busca Clientes, Pedidos e Produtos simultaneamente para o Dashboard
       const [resUsers, resPedidos, resProdutos] = await Promise.all([
         fetch('http://localhost:3000/users').catch(() => null),
         fetch('http://localhost:3000/orders').catch(() => null),
@@ -60,7 +89,6 @@ function App() {
     carregarDadosDashboard();
   }, []);
 
-  // Cálculo dinâmico das métricas reais do banco de dados
   const totalVendas = pedidos.reduce((acc, p) => acc + (Number(p.total) || 0), 0);
 
   const pedidosPendentes = pedidos.filter(p => 
@@ -124,18 +152,20 @@ function App() {
           </Link>
         </nav>
 
+        {/* USUÁRIO REAL LOGADO */}
         <div className="sidebar-user">
-          <div className="avatar-circle">AD</div>
+          <div className="avatar-circle">
+            {obterIniciais(usuarioLogado?.nome)}
+          </div>
           <div className="user-info">
-            <div className="user-name">Administrador</div>
-            <div className="user-status">admin@admin.com</div>
+            <div className="user-name">{usuarioLogado?.nome || 'Administrador'}</div>
+            <div className="user-status">{usuarioLogado?.email || 'admin@admin.com'}</div>
           </div>
         </div>
       </aside>
 
       {/* 2. CONTEÚDO PRINCIPAL */}
       <main className="main-content">
-        {/* HEADER / TOPBAR RENOVADO */}
         <header style={styles.topbar}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <h1 style={styles.topbarTitle}>
@@ -152,7 +182,16 @@ function App() {
               <FaStore style={{ fontSize: '16px', color: '#2563eb' }} />
               <span>Vitrine da Loja</span>
             </Link>
-            <button className="icon-btn" title="Sair" style={styles.logoutBtn}>⏻</button>
+            
+            {/* BOTÃO DE LOGOUT REAL */}
+            <button 
+              onClick={handleLogout} 
+              className="icon-btn" 
+              title="Sair do Sistema" 
+              style={styles.logoutBtn}
+            >
+              ⏻
+            </button>
           </div>
         </header>
 
@@ -164,7 +203,7 @@ function App() {
               <div className="page-header" style={{ marginBottom: '20px' }}>
                 <div>
                   <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
-                    Olá, Administrador 👋
+                    Olá, {usuarioLogado?.nome ? usuarioLogado.nome.split(' ')[0] : 'Administrador'} 👋
                   </h2>
                   <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
                     Acompanhe em tempo real as métricas e clientes do seu e-commerce.
@@ -172,7 +211,7 @@ function App() {
                 </div>
               </div>
 
-              {/* MÉTRICAS (4 CARDS) */}
+              {/* MÉTRICAS */}
               <div style={styles.cardsContainer}>
                 <div style={styles.card}>
                   <div style={styles.cardHeader}>
@@ -225,7 +264,7 @@ function App() {
 
               {erro && <p className="error-message">{erro}</p>}
 
-              {/* TABELA DE CLIENTES (Sem a coluna ID) */}
+              {/* TABELA DE CLIENTES */}
               <div style={styles.tableCard}>
                 <h3 style={{ margin: '0 0 15px 0', color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>
                   Últimos Clientes Cadastrados
@@ -300,50 +339,25 @@ const styles = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '8px',
-    background: 'transparent', // Fundo transparente
+    background: 'transparent',
     padding: '8px 14px',
     borderRadius: '8px',
     textDecoration: 'none',
-    border: 'none',            // Remove a borda
+    border: 'none',
     color: '#1e293b',
     fontSize: '13px',
     fontWeight: '600',
-    cursor: 'pointer'          // Adicionado cursor pointer para parecer botão
+    cursor: 'pointer'
   },
   logoutBtn: {
-    background: 'transparent', // Fundo transparente
-    color: '#ef4444',          // Mantém o vermelho apenas no texto/ícone
-    border: 'none',            // Remove a borda
+    background: 'transparent',
+    color: '#ef4444',
+    border: 'none',
     padding: '8px 12px',
     borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '16px'
   },
-
- storeBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: 'transparent', // Fundo transparente
-    padding: '8px 14px',
-    borderRadius: '8px',
-    textDecoration: 'none',
-    border: 'none',            // Remove a borda
-    color: '#1e293b',
-    fontSize: '13px',
-    fontWeight: '600',
-    cursor: 'pointer'          // Adicionado cursor pointer para parecer botão
-  },
-  logoutBtn: {
-    background: 'transparent', // Fundo transparente
-    color: '#ef4444',          // Mantém o vermelho apenas no texto/ícone
-    border: 'none',            // Remove a borda
-    padding: '8px 12px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '16px'
-  },
-  
   cardsContainer: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',

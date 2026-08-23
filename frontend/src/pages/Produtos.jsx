@@ -1,421 +1,382 @@
-import { useEffect, useState } from 'react';
-import { FaBoxOpen, FaPlus, FaTrash, FaEdit, FaCheckCircle, FaSearch, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaBox, FaCloudUploadAlt } from 'react-icons/fa';
 
 export default function Produtos() {
-  const navigate = useNavigate();
   const [produtos, setProdutos] = useState([]);
-  const [mostrarForm, setMostrarForm] = useState(false);
-  const [erro, setErro] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [enviandoImagem, setEnviandoImagem] = useState(false);
-  const [busca, setBusca] = useState('');
-
-  // Estados do formulário
-  const [produtoEditandoId, setProdutoEditandoId] = useState(null);
-  const [nome, setNome] = useState('');
-  const [descricao, setDescricao] = useState('');
-  const [preco, setPreco] = useState('');
-  const [imagemArquivo, setImagemArquivo] = useState(null);
-  const [previewImagem, setPreviewImagem] = useState('');
   const [categorias, setCategorias] = useState([]);
+  const [busca, setBusca] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [modalAberto, setModalAberto] = useState(false);
+  const [produtoEditando, setProdutoEditando] = useState(null);
+
+  // Campos do formulário
+  const [nome, setNome] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
-  const [buscaCategoria, setBuscaCategoria] = useState('');
+  const [preco, setPreco] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [imagem, setImagem] = useState(null);
+  const [previewImagem, setPreviewImagem] = useState('');
 
-  // ESTADOS DE PAGINAÇÃO (10 por página)
-  const [paginaAtual, setPaginaAtual] = useState(1);
-  const itensPorPagina = 10;
+  // Filtro interno de categorias no select
+  const [filtroCategoria, setFiltroCategoria] = useState('');
 
-  const IMGBB_API_KEY = '7977dacd0664e5cededa23464cff6599';
-
-  async function listarProdutos() {
+  // 1. CARREGAR PRODUTOS E CATEGORIAS
+  const carregarDados = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3000/products');
-      if (!res.ok) throw new Error('Erro ao buscar produtos');
-      const data = await res.json();
-      setProdutos(Array.isArray(data) ? data : []);
+      const [resProd, resCat] = await Promise.all([
+        fetch('http://localhost:3000/products'),
+        fetch('http://localhost:3000/categories')
+      ]);
+
+      if (resProd.ok) {
+        const dataP = await resProd.json();
+        setProdutos(Array.isArray(dataP) ? dataP : dataP.products || []);
+      }
+
+      if (resCat.ok) {
+        const dataC = await resCat.json();
+        setCategorias(Array.isArray(dataC) ? dataC : dataC.categories || []);
+      }
     } catch (err) {
-      console.error(err);
-      setErro('Não foi possível carregar o catálogo de produtos.');
-      setProdutos([]);
+      console.error("Erro ao carregar dados", err);
     } finally {
       setLoading(false);
     }
-  }
-
-  async function carregarCategoriasParaOSelect() {
-    try {
-      const res = await fetch('http://localhost:3000/categories');
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setCategorias(data);
-      } else if (data && Array.isArray(data.categories)) {
-        setCategorias(data.categories);
-      } else {
-        setCategorias([]);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar categorias:", err);
-      setCategorias([]);
-    }
-  }
-
-  function abrirModalNovoProduto() {
-    setProdutoEditandoId(null);
-    setNome('');
-    setDescricao('');
-    setPreco('');
-    setImagemArquivo(null);
-    setPreviewImagem('');
-    setCategoriaId('');
-    setBuscaCategoria('');
-    setErro('');
-    setMostrarForm(true);
-  }
-
-  function prepararEdicao(produto) {
-    setProdutoEditandoId(produto.id);
-    setNome(produto.nome || '');
-    setDescricao(produto.descricao || '');
-    setPreco(produto.preco ? produto.preco.toString() : '');
-    setCategoriaId(produto.categoriaId ? produto.categoriaId.toString() : '');
-    setPreviewImagem(produto.imagemUrl || '');
-    setImagemArquivo(null);
-    setErro('');
-    setMostrarForm(true);
-  }
-
-  function handleSelecionarImagem(e) {
-    const arquivo = e.target.files[0];
-    if (arquivo) {
-      setImagemArquivo(arquivo);
-      setPreviewImagem(URL.createObjectURL(arquivo));
-    }
-  }
-
-  async function fazerUploadImagemImgBB() {
-    if (!imagemArquivo) return previewImagem;
-
-    const formData = new FormData();
-    formData.append('image', imagemArquivo);
-
-    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-      method: 'POST',
-      body: formData
-    });
-
-    const data = await res.json();
-    if (data.success) {
-      return data.data.url;
-    } else {
-      throw new Error('Falha ao enviar imagem para o serviço externo.');
-    }
-  }
-
-  async function salvarProduto(e) {
-    e.preventDefault();
-    setErro('');
-
-    if (parseFloat(preco) <= 0 || isNaN(parseFloat(preco))) {
-      setErro('O preço deve ser um valor positivo maior que zero (Ex: R$ 0.01).');
-      return;
-    }
-
-    if (!previewImagem && !imagemArquivo) {
-      setErro('A foto do produto é obrigatória (*).');
-      return;
-    }
-
-    if (!descricao.trim()) {
-      setErro('A descrição da peça é obrigatória (*).');
-      return;
-    }
-
-    setEnviandoImagem(true);
-
-    try {
-      let finalImagemUrl = previewImagem;
-
-      if (imagemArquivo) {
-        finalImagemUrl = await fazerUploadImagemImgBB();
-      }
-
-      const ehEdicao = !!produtoEditandoId;
-      const url = ehEdicao 
-        ? `http://localhost:3000/products/${produtoEditandoId}`
-        : 'http://localhost:3000/products';
-
-      const res = await fetch(url, {
-        method: ehEdicao ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome,
-          descricao,
-          preco: parseFloat(preco),
-          imagemUrl: finalImagemUrl,
-          categoriaId: parseInt(categoriaId)
-        })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Erro ao salvar produto');
-      }
-
-      setMostrarForm(false);
-      listarProdutos();
-    } catch (err) {
-      console.error(err);
-      setErro(err.message || 'Erro ao comunicar com o servidor.');
-    } finally {
-      setEnviandoImagem(false);
-    }
-  }
-
-  async function excluirProduto(id, nomeProduto) {
-    if (window.confirm(`Tem certeza que deseja remover o produto "${nomeProduto}"?`)) {
-      try {
-        const res = await fetch(`http://localhost:3000/products/${id}`, { method: 'DELETE' });
-        if (res.ok) listarProdutos();
-      } catch (err) {
-        alert('Erro ao excluir o produto.');
-      }
-    }
-  }
-
-  // --- FILTROS E LÓGICA DE PAGINAÇÃO ---
-  const produtosFiltrados = (Array.isArray(produtos) ? produtos : []).filter(p =>
-    p.nome.toLowerCase().includes(busca.toLowerCase())
-  );
-
-  const totalPaginas = Math.ceil(produtosFiltrados.length / itensPorPagina) || 1;
-  const indiceInicial = (paginaAtual - 1) * itensPorPagina;
-  const produtosPaginados = produtosFiltrados.slice(indiceInicial, indiceInicial + itensPorPagina);
-
-  const categoriasFiltradas = (Array.isArray(categorias) ? categorias : []).filter(c =>
-    c.nome.toLowerCase().includes(buscaCategoria.toLowerCase())
-  );
+  };
 
   useEffect(() => {
-    setPaginaAtual(1);
-  }, [busca]);
-
-  useEffect(() => {
-    listarProdutos();
-    carregarCategoriasParaOSelect();
+    carregarDados();
   }, []);
 
+  const limparFormulario = () => {
+    setNome('');
+    setCategoriaId('');
+    setPreco('');
+    setDescricao('');
+    setImagem(null);
+    setPreviewImagem('');
+    setFiltroCategoria('');
+    setProdutoEditando(null);
+  };
+
+  const abrirModalNovo = () => {
+    limparFormulario();
+    setModalAberto(true);
+  };
+
+  const abrirModalEditar = (prod) => {
+    setProdutoEditando(prod);
+    setNome(prod.nome || prod.name || '');
+    setCategoriaId(prod.categoriaId || prod.categoryId || prod.categoria?.id || '');
+    setPreco(prod.preco || prod.price || '');
+    setDescricao(prod.descricao || prod.description || '');
+    setPreviewImagem(prod.imagemUrl || prod.imageUrl || '');
+    setFiltroCategoria('');
+    setModalAberto(true);
+  };
+
+  const handleImagemChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImagem(file);
+      setPreviewImagem(URL.createObjectURL(file));
+    }
+  };
+
+  // 2. SALVAR PRODUTO
+  const salvarProduto = async (e) => {
+    e.preventDefault();
+
+    if (!nome || !preco || !categoriaId) {
+      alert('Por favor, preencha os campos obrigatórios (Nome, Categoria e Preço).');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('nome', nome);
+    formData.append('categoriaId', categoriaId);
+    formData.append('preco', preco);
+    formData.append('descricao', descricao);
+    if (imagem) {
+      formData.append('imagem', imagem);
+    }
+
+    try {
+      const isEdicao = !!produtoEditando;
+      const url = isEdicao 
+        ? `http://localhost:3000/products/${produtoEditando.id}` 
+        : 'http://localhost:3000/products';
+      const method = isEdicao ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        body: formData // Envia Multipart FormData para suportar upload de fotos
+      });
+
+      if (res.ok) {
+        alert(isEdicao ? 'Peça/Produto atualizado com sucesso!' : 'Peça/Produto cadastrado com sucesso!');
+        setModalAberto(false);
+        limparFormulario();
+        carregarDados();
+      } else {
+        alert('Erro ao salvar produto.');
+      }
+    } catch (err) {
+      alert('Erro de conexão ao salvar produto.');
+    }
+  };
+
+  // 3. EXCLUIR PRODUTO
+  const excluirProduto = async (id) => {
+    if (!window.confirm('Tem certeza que deseja excluir este produto?')) return;
+    try {
+      const res = await fetch(`http://localhost:3000/products/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setProdutos(produtos.filter(p => p.id !== id));
+      }
+    } catch (err) {
+      alert('Erro ao excluir produto.');
+    }
+  };
+
+  // CATEGORIAS FILTRADAS PARA O SELECT
+  const categoriasFiltradas = categorias.filter(c => 
+    (c.nome || c.name || '').toLowerCase().includes(filtroCategoria.toLowerCase())
+  );
+
+  // LISTA DE PRODUTOS FILTRADA PARA A TABELA
+  const listaProdutos = Array.isArray(produtos) ? produtos : [];
+  const produtosFiltrados = listaProdutos.filter(p => {
+    const nomeProd = String(p.nome || p.name || '').toLowerCase();
+    const catNome = String(p.categoria?.nome || p.categoriaNome || '').toLowerCase();
+    const termoBusca = busca.toLowerCase();
+
+    return nomeProd.includes(termoBusca) || catNome.includes(termoBusca);
+  });
+
   return (
-    <>
-      <div className="page-header">
+    <div style={{ padding: '10px' }}>
+      {/* CABEÇALHO */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
-          <h2 className="page-title">Catálogo de Produtos</h2>
-          <p className="page-subtitle">Gerencie as peças e valores do e-commerce/balcão.</p>
+          <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Catálogo de Produtos</h2>
+          <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>Gerencie as peças e produtos disponíveis na loja.</p>
         </div>
-        <button className="novo-btn" onClick={abrirModalNovoProduto}>
-          <FaPlus style={{ marginRight: '8px', fontSize: '12px' }} /> Novo Produto
+        <button 
+          onClick={abrirModalNovo}
+          style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          <FaPlus style={{ fontSize: '12px' }} /> Novo Produto
         </button>
       </div>
 
-      <div className="user-list-card">
-        <div className="search-container destacado">
-          <FaSearch className="search-icon-placeholder" style={{ color: '#2563eb' }} />
-          <input 
-            type="text" 
-            className="search-input" 
-            placeholder="🔍 Digite aqui para buscar peças por nome..." 
+      {/* CARD PRINCIPAL */}
+      <div style={{ background: '#fff', padding: '24px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', marginBottom: '20px' }}>
+          <FaSearch style={{ color: '#94a3b8', marginRight: '10px' }} />
+          <input
+            type="text"
+            placeholder="Buscar por peça ou categoria..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
+            style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
           />
         </div>
 
         {loading ? (
-          <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>Carregando catálogo...</p>
-        ) : produtosFiltrados.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-            <FaBoxOpen style={{ fontSize: '48px', marginBottom: '10px' }} />
-            <p>Nenhuma peça encontrada.</p>
-          </div>
+          <p style={{ textAlign: 'center', color: '#64748b', padding: '20px' }}>Carregando catálogo...</p>
         ) : (
-          <>
-            <table className="user-table">
-              <thead>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left' }}>
+                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>NOME / CATEGORIA</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>PREÇO</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b', textAlign: 'right' }}>AÇÕES</th>
+              </tr>
+            </thead>
+            <tbody>
+              {produtosFiltrados.length === 0 ? (
                 <tr>
-                  <th>Nome / Categoria</th>
-                  <th>Preço</th>
-                  <th style={{ textAlign: 'right' }}>Ações</th>
+                  <td colSpan="3" style={{ textAlign: 'center', color: '#94a3b8', padding: '30px' }}>
+                    Nenhuma peça/produto encontrada.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {produtosPaginados.map(produto => (
-                  <tr key={produto.id}>
-                    <td className="user-name" style={{ fontWeight: '600' }}>
-                      {produto.nome} 
-                      <small style={{ display: 'block', color: '#64748b', fontWeight: 'normal', fontSize: '11px' }}>
-                        Categoria: {produto.categoria?.nome || 'Nenhuma'}
-                      </small>
+              ) : (
+                produtosFiltrados.map(p => (
+                  <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
+                        {p.nome || p.name}
+                      </div>
+                      <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>
+                        Categoria: {p.categoria?.nome || p.categoriaNome || 'Geral'}
+                      </div>
                     </td>
-                    <td style={{ color: '#10b981', fontWeight: '600' }}>
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.preco)}
+                    <td style={{ padding: '14px 16px', fontWeight: '700', color: '#16a34a' }}>
+                      R$ {Number(p.preco || p.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="table-actions" style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                      <button className="action-btn edit" title="Editar" onClick={() => prepararEdicao(produto)}><FaEdit /></button>
-                      <button className="action-btn delete" title="Excluir" onClick={() => excluirProduto(produto.id, produto.nome)}><FaTrash /></button>
+                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        <button
+                          onClick={() => abrirModalEditar(p)}
+                          title="Editar Produto"
+                          style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                          <FaEdit />
+                        </button>
+                        <button
+                          onClick={() => excluirProduto(p.id)}
+                          title="Excluir Produto"
+                          style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* BARRA DE PAGINAÇÃO (MAX 10 ITENS POR PÁGINA) */}
-            <div className="pagination-container">
-              <span className="pagination-info">
-                Exibindo {indiceInicial + 1} a {Math.min(indiceInicial + itensPorPagina, produtosFiltrados.length)} de {produtosFiltrados.length} produtos
-              </span>
-
-              <div className="pagination-buttons">
-                <button 
-                  className="page-btn" 
-                  onClick={() => setPaginaAtual(prev => Math.max(prev - 1, 1))}
-                  disabled={paginaAtual === 1}
-                >
-                  <FaChevronLeft style={{ fontSize: '10px', marginRight: '4px' }} /> Anterior
-                </button>
-
-                {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
-                  <button
-                    key={num}
-                    className={`page-btn ${paginaAtual === num ? 'active' : ''}`}
-                    onClick={() => setPaginaAtual(num)}
-                  >
-                    {num}
-                  </button>
-                ))}
-
-                <button 
-                  className="page-btn" 
-                  onClick={() => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas))}
-                  disabled={paginaAtual === totalPaginas}
-                >
-                  Próxima <FaChevronRight style={{ fontSize: '10px', marginLeft: '4px' }} />
-                </button>
-              </div>
-            </div>
-          </>
+                ))
+              )}
+            </tbody>
+          </table>
         )}
       </div>
 
-      {mostrarForm && (
-        <div className="modal-overlay">
-          <form className="modal-content" style={{ width: '500px' }} onSubmit={salvarProduto}>
-            <button type="button" className="modal-close-btn" onClick={() => setMostrarForm(false)}>×</button>
-            <h3 className="modal-title">{produtoEditandoId ? 'Editar Peça' : 'Cadastrar Nova Peça'}</h3>
-
-            {erro && <p style={{ color: '#ef4444', fontSize: '13px', background: '#fef2f2', padding: '8px', borderRadius: '6px', marginBottom: '15px' }}>{erro}</p>}
+      {/* MODAL CADASTRAR / EDITAR PRODUTO */}
+      {modalAberto && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
             
-            <div className="form-group">
-              <label className="form-label">Nome do Produto *</label>
-              <input type="text" className="form-input" placeholder="Ex: Vestido Sob Medida Elegance" value={nome} onChange={(e) => setNome(e.target.value)} required />
+            {/* CABEÇALHO DO MODAL */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>
+                {produtoEditando ? `Editar Peça: ${produtoEditando.nome || ''}` : 'Cadastrar Nova Peça'}
+              </h3>
+              <FaTimes style={{ cursor: 'pointer', color: '#64748b', fontSize: '16px' }} onClick={() => setModalAberto(false)} />
             </div>
 
-            <div className="form-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label className="form-label" style={{ margin: 0 }}>Categoria do Produto *</label>
+            <form onSubmit={salvarProduto} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              
+              {/* NOME DO PRODUTO */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>Nome do Produto *</label>
+                <input 
+                  type="text" 
+                  value={nome} 
+                  onChange={e => setNome(e.target.value)} 
+                  placeholder="Ex: Vestido Sob Medida Elegance"
+                  required
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box', fontSize: '14px' }} 
+                />
+              </div>
+
+              {/* CATEGORIA E PREÇO EM 2 COLUNAS */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                
+                {/* CATEGORIA COM BUSCA EMBUTIDA DENTRO DO MESMO BLOCO */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>Categoria *</label>
+                    <a href="/categorias" style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>+ Nova Categoria</a>
+                  </div>
+                  
+                  {/* Campo de filtro rápido caso tenha muitas categorias */}
+                  {categorias.length > 5 && (
+                    <input 
+                      type="text"
+                      placeholder="Filtrar categoria..."
+                      value={filtroCategoria}
+                      onChange={e => setFiltroCategoria(e.target.value)}
+                      style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '11px', marginBottom: '4px', boxSizing: 'border-box' }}
+                    />
+                  )}
+
+                  <select 
+                    value={categoriaId} 
+                    onChange={e => setCategoriaId(e.target.value)}
+                    required
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', background: '#fff', boxSizing: 'border-box' }}
+                  >
+                    <option value="">Selecione...</option>
+                    {categoriasFiltradas.map(c => (
+                      <option key={c.id} value={c.id}>{c.nome || c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* PREÇO */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>Preço (R$) *</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={preco} 
+                    onChange={e => setPreco(e.target.value)} 
+                    placeholder="0.00"
+                    required
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box', fontSize: '14px' }} 
+                  />
+                </div>
+
+              </div>
+
+              {/* FOTO DO PRODUTO (UPLOAD/PREVIEW) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>Foto do Produto</label>
+                <div style={{ border: '2px dashed #cbd5e1', borderRadius: '8px', padding: '16px', textAlign: 'center', background: '#f8fafc', cursor: 'pointer', position: 'relative' }}>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleImagemChange}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                  />
+                  {previewImagem ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                      <img src={previewImagem} alt="Preview" style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px' }} />
+                      <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: '600' }}>Imagem selecionada! Clique para alterar</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <FaCloudUploadAlt style={{ fontSize: '28px', color: '#94a3b8', marginBottom: '4px' }} />
+                      <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Clique para selecionar uma imagem</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* DESCRIÇÃO DA PEÇA */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>Descrição da Peça</label>
+                <textarea 
+                  rows="3" 
+                  value={descricao} 
+                  onChange={e => setDescricao(e.target.value)} 
+                  placeholder="Detalhes sobre tecido, corte ou caimento sob medida..."
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box', fontSize: '14px', resize: 'vertical' }}
+                />
+              </div>
+
+              {/* BOTÕES DE AÇÃO */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
                 <button 
                   type="button" 
-                  onClick={() => navigate('/categorias')}
-                  style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                  onClick={() => setModalAberto(false)}
+                  style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 18px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
                 >
-                  + Nova Categoria
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  {produtoEditando ? 'Atualizar Peça' : 'Salvar Peça'}
                 </button>
               </div>
 
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="Filtrar categorias na lista..." 
-                value={buscaCategoria}
-                onChange={(e) => setBuscaCategoria(e.target.value)}
-                style={{ marginBottom: '6px', padding: '6px 10px', fontSize: '12px' }}
-              />
-
-              <select 
-                className="form-input" 
-                value={categoriaId} 
-                onChange={(e) => setCategoriaId(e.target.value)} 
-                required
-              >
-                <option value="">Selecione uma categoria...</option>
-                {categoriasFiltradas.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.nome}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Preço (R$) *</label>
-              <input 
-                type="number" 
-                step="0.01" 
-                min="0.01"
-                className="form-input" 
-                placeholder="Ex: 150.00 (Deve ser maior que 0)" 
-                value={preco} 
-                onChange={(e) => setPreco(e.target.value)} 
-                required 
-              />
-            </div>
-
-            <div className="form-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label className="form-label">Foto do Produto *</label>
-                {(previewImagem || imagemArquivo) && (
-                  <span className="badge-check"><FaCheckCircle /> Imagem Selecionada</span>
-                )}
-              </div>
-
-              <div className={`upload-container ${previewImagem ? 'com-sucesso' : ''}`}>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleSelecionarImagem}
-                  style={{ fontSize: '12px' }}
-                />
-                
-                {previewImagem && (
-                  <img 
-                    src={previewImagem} 
-                    alt="Preview" 
-                    style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '6px', marginTop: '8px' }} 
-                  />
-                )}
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Descrição da Peça *</label>
-              <textarea 
-                className="form-input" 
-                style={{ height: '70px', resize: 'none' }} 
-                placeholder="Detalhes sobre tecido, corte ou caimento sob medida..." 
-                value={descricao} 
-                onChange={(e) => setDescricao(e.target.value)} 
-                required
-              />
-            </div>
-
-            <div className="modal-actions">
-              <button type="button" className="modal-btn cancelar" onClick={() => setMostrarForm(false)} disabled={enviandoImagem}>Cancelar</button>
-              <button type="submit" className="modal-btn salvar" disabled={enviandoImagem}>
-                {enviandoImagem ? 'Enviando...' : (produtoEditandoId ? 'Atualizar Peça' : 'Salvar Peça')}
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

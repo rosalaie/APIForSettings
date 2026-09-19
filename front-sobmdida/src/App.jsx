@@ -2,7 +2,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import LoginAdmin from './pages/LoginAdmin';
 import Dashboard from './pages/Dashboard';
-import Carrinho from './pages/Carrinho'; // <-- Importe aqui
+import Carrinho from './pages/Carrinho';
+import CadastroCliente from './pages/CadastroCliente'; 
+import Produto from './pages/Produto'; 
 import './App.css';
 
 function App() {
@@ -12,7 +14,9 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/admin" element={<LoginAdmin />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/carrinho" element={<Carrinho />} /> {/* <-- Nova rota aqui */}
+        <Route path="/carrinho" element={<Carrinho />} />
+        <Route path="/cadastro" element={<CadastroCliente />} /> 
+        <Route path="/produto" element={<Produto />} /> 
       </Routes>
     </BrowserRouter>
   );

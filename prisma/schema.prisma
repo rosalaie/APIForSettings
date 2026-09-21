@@ -7,42 +7,79 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id    Int     @id @default(autoincrement())
-  nome  String
-  email String  @unique
-}
-
 model Users {
   id        Int      @id @default(autoincrement())
   nome      String
-  sobrenome String?  // Novo campo opcional
+  sobrenome String?
   email     String   @unique
-  cpf       String?  @unique // CPF opcional no banco, mas obrigatório no Front
-  telefone  String?  // Novo campo opcional
-  endereco  String?  // Novo campo opcional
+  cpf       String?  @unique
+  telefone  String?
+  endereco  String?
   senha     String
   role      String   @default("CLIENT")
   createdAt DateTime @default(now())
+
+  // Relação com pedidos
+  pedidos   Orders[]
 }
 
 model Products {
-  id          Int        @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   nome        String
   descricao   String?
   preco       Float
-  estoque     Int        @default(0)
+  estoque     Int          @default(0)
   imagemUrl   String?
-  createdAt   DateTime   @default(now())
+  createdAt   DateTime     @default(now())
   
-  // Chave estrangeira 
   categoriaId Int
-  categoria   Categories @relation(fields: [categoriaId], references: [id])
+  categoria   Categories   @relation(fields: [categoriaId], references: [id])
+
+  // Relação com itens de pedidos
+  itensPedido OrderItems[]
 }
 
 model Categories {
   id        Int        @id @default(autoincrement())
   nome      String     @unique
   descricao String?
-  produtos  Products[] // Uma categoria pode ter uma lista de vários produtos
+  produtos  Products[]
+}
+
+enum OrderStatus {
+  PENDENTE
+  PAGO
+  EM_PREPARACAO
+  ENVIADO
+  ENTREGUE
+  CANCELADO
+}
+
+enum OrderOrigin {
+  BALCAO
+  SITE
+}
+
+model Orders {
+  id             Int          @id @default(autoincrement())
+  clienteId      Int
+  cliente        Users        @relation(fields: [clienteId], references: [id])
+  total          Float
+  status         OrderStatus  @default(PENDENTE)
+  formaPagamento String?
+  origem         OrderOrigin  @default(BALCAO)
+  observacoes    String?
+  itens          OrderItems[]
+  criadoEm       DateTime     @default(now())
+  atualizadoEm   DateTime     @updatedAt
+}
+
+model OrderItems {
+  id         Int      @id @default(autoincrement())
+  pedidoId   Int
+  pedido     Orders   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produtoId  Int
+  produto    Products @relation(fields: [produtoId], references: [id])
+  quantidade Int
+  precoUnit  Float
 }

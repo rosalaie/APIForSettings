@@ -28,9 +28,8 @@ function Home() {
         <nav style={{ display: 'flex', gap: '25px', fontWeight: '500', color: '#555', fontSize: '14px' }}>
           <span style={{ color: '#000', fontWeight: 'bold' }}>Nosso Catálogo</span>
           <Link to="/carrinho" style={{ color: '#555', textDecoration: 'none' }}>Seus Pedidos</Link>
-          <span style={{ cursor: 'pointer' }}>Nosso Contato</span>
-          <Link to="/cadastro" style={{ color: '#555', textDecoration: 'none' }}>Sua Conta</Link>
-        </nav>
+          <Link to="/admin" style={{ color: '#555', textDecoration: 'none' }}>Área Admin</Link>
+<Link to="/login" style={{ color: '#555', textDecoration: 'none' }}>Sua Conta</Link>        </nav>
       </header>
 
       {/* Vitrine de Produtos */}

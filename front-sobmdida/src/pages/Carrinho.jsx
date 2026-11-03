@@ -74,9 +74,11 @@ function Carrinho() {
             <span style={{ fontSize: '22px', fontWeight: '900', color: '#c62828' }}>R$ {total.toFixed(2).replace('.', ',')}</span>
           </div>
 
-          <button style={{ width: '100%', backgroundColor: '#27ae60', color: '#fff', border: 'none', padding: '14px', borderRadius: '8px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}>
-            Finalizar Pedido ✅
-          </button>
+          <Link to="/login" style={{ textDecoration: 'none' }}>
+  <button style={{ backgroundColor: '#16a34a', color: '#fff', padding: '15px 40px', border: 'none', borderRadius: '8px', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s' }}>
+    Finalizar Pedido
+  </button>
+</Link>
         </div>
 
       </main>

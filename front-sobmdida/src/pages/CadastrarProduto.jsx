@@ -1,94 +1,72 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { Link, useNavigate } from 'react-router-dom';
 
 function CadastrarProduto() {
   const [nome, setNome] = useState('');
-  const [descricao, setDescricao] = useState('');
+  const [categoria, setCategoria] = useState('');
   const [preco, setPreco] = useState('');
-  const [estoque, setEstoque] = useState(''); 
-  const [imagemUrl, setImagemUrl] = useState(''); 
-  const [mensagem, setMensagem] = useState('');
+  const [imagem, setImagem] = useState(null);
+  const navigate = useNavigate();
 
-  const salvarProduto = async (e) => {
+  const handleSalvarProduto = (e) => {
     e.preventDefault();
-    setMensagem('Salvando...');
-
-    try {
-      // Aponta para a rota da sua API na porta 3000
-      await axios.post('http://localhost:3000/products', {
-        nome: nome,
-        descricao: descricao,
-        preco: parseFloat(preco.replace(',', '.')), // Converte vírgula para ponto
-        estoque: parseInt(estoque), // Garante que seja número inteiro
-        imagemUrl: imagemUrl,
-        categoriaId: 1 // Usando ID 1 fixo temporariamente para testes
-      });
-      
-      setMensagem('✅ Produto cadastrado com sucesso!');
-      // Limpa os campos após o sucesso
-      setNome(''); setDescricao(''); setPreco(''); setEstoque(''); setImagemUrl(''); 
-    } catch (erro) {
-      console.error("Erro ao salvar:", erro);
-      setMensagem('❌ Erro ao cadastrar. Verifique se o backend está ligado e se a categoria 1 existe no banco.');
-    }
+    // Aqui entrará a lógica do Firebase e o fetch para o backend Node.js
+    console.log("Dados prontos para envio:", { nome, categoria, preco, imagem });
+    alert("Formulário pronto para conectar ao banco!");
   };
 
   return (
     <div style={{ backgroundColor: '#f9fafb', minHeight: '100vh', fontFamily: 'Segoe UI, sans-serif' }}>
       
-      {/* Cabeçalho Administrativo */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', padding: '20px 40px', backgroundColor: '#fff', borderBottom: '1px solid #eaeaea' }}>
-        <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '900' }}>SOBMDIDA</h1>
-        <span style={{ fontWeight: 'bold', color: '#555' }}>👕 Área Administrativa</span>
+      {/* Cabeçalho com o Logo Corrigido */}
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', backgroundColor: '#fff', borderBottom: '1px solid #eaeaea' }}>
+        <Link to="/" style={{ textDecoration: 'none', color: '#000' }}>
+          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '900' }}>SOBMDIDA</h1>
+        </Link>
+        <nav style={{ display: 'flex', gap: '20px', fontWeight: 'bold', color: '#555' }}>
+          <Link to="/admin/dashboard" style={{ color: '#555', textDecoration: 'none' }}>Pedidos</Link>
+          <span style={{ color: '#000' }}>Novo Produto</span>
+          <Link to="/" style={{ color: '#e11d48', textDecoration: 'none' }}>Sair</Link>
+        </nav>
       </header>
 
-      <main style={{ padding: '40px', maxWidth: '600px', margin: '0 auto' }}>
-        <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '12px', border: '1px solid #eaeaea', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-          <h2 style={{ marginBottom: '20px', color: '#111' }}>Cadastrar Novo Produto</h2>
+      {/* Formulário de Cadastro */}
+      <main style={{ padding: '40px', maxWidth: '600px', margin: '40px auto', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #eaeaea', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+        <h2 style={{ fontSize: '24px', color: '#111', marginBottom: '20px' }}>Cadastrar Novo Produto</h2>
+        
+        <form onSubmit={handleSalvarProduto} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
-          <form onSubmit={salvarProduto} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Nome do Produto</label>
-              <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} placeholder="Ex: Caneca Personalizada" />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Descrição</label>
-              <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows="3" style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} placeholder="Detalhes do material, tamanho, etc." />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Preço Base (R$)</label>
-                <input type="text" value={preco} onChange={(e) => setPreco(e.target.value)} required style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} placeholder="Ex: 45,90" />
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Estoque Inicial</label>
-                <input type="number" value={estoque} onChange={(e) => setEstoque(e.target.value)} required style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} placeholder="Ex: 50" />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Link da Imagem (URL)</label>
-              <input type="text" value={imagemUrl} onChange={(e) => setImagemUrl(e.target.value)} required style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} placeholder="https://..." />
-            </div>
-
-            <button type="submit" style={{ marginTop: '15px', backgroundColor: '#000', color: '#fff', padding: '12px', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
-              Salvar Produto
-            </button>
-            
-            {mensagem && <p style={{ textAlign: 'center', marginTop: '10px', fontWeight: 'bold', color: mensagem.includes('❌') ? 'red' : 'green' }}>{mensagem}</p>}
-          </form>
-
-          <div style={{ marginTop: '20px', textAlign: 'center' }}>
-            <Link to="/" style={{ color: '#0284c7', textDecoration: 'none', fontSize: '14px', fontWeight: 'bold' }}>
-              ⬅ Voltar para a Vitrine (Ver produtos)
-            </Link>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Nome do Produto</label>
+            <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ padding: '12px', borderRadius: '6px', border: '1px solid #ddd' }} placeholder="Ex: Caneca Personalizada" />
           </div>
-        </div>
+
+          <div style={{ display: 'flex', gap: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+              <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Categoria</label>
+              <select value={categoria} onChange={(e) => setCategoria(e.target.value)} required style={{ padding: '12px', borderRadius: '6px', border: '1px solid #ddd', backgroundColor: '#fff' }}>
+                <option value="">Selecione...</option>
+                <option value="Canecas">Canecas</option>
+                <option value="Camisetas">Camisetas</option>
+                <option value="Garrafas">Garrafas</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+              <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Preço Base (R$)</label>
+              <input type="number" step="0.01" value={preco} onChange={(e) => setPreco(e.target.value)} required style={{ padding: '12px', borderRadius: '6px', border: '1px solid #ddd' }} placeholder="0.00" />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Imagem do Produto</label>
+            <input type="file" accept="image/*" onChange={(e) => setImagem(e.target.files[0])} required style={{ padding: '10px', border: '1px dashed #bbb', borderRadius: '6px', cursor: 'pointer' }} />
+          </div>
+
+          <button type="submit" style={{ backgroundColor: '#16a34a', color: '#fff', padding: '15px', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px', marginTop: '10px' }}>
+            Salvar Produto
+          </button>
+        </form>
       </main>
     </div>
   );

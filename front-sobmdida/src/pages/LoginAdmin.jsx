@@ -8,15 +8,14 @@ function LoginAdmin() {
 
   const fazerLogin = (e) => {
     e.preventDefault();
-    if (email && senha) {
-      navigate('/admin/novo-produto');
-    }
+    // Redirecionamento direto para a tela de produtos
+    navigate('/admin/novo-produto');
   };
 
   return (
     <div style={{ backgroundColor: '#f9fafb', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', fontFamily: 'Segoe UI, sans-serif' }}>
       
-      {/* Cabeçalho Responsivo Padronizado */}
+      {/* Cabeçalho */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '20px 40px', backgroundColor: '#fff', borderBottom: '1px solid #eaeaea' }}>
         <Link to="/" style={{ textDecoration: 'none' }}>
           <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#000' }}>SOBMDIDA</h1>
@@ -31,12 +30,30 @@ function LoginAdmin() {
         <form onSubmit={fazerLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>E-mail</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ padding: '12px', borderRadius: '6px', border: '1px solid #ddd' }} placeholder="exemplo@sobmdida.com.br" />
+            <input 
+              type="email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              required 
+              onInvalid={(e) => e.target.setCustomValidity('Por favor, preencha este campo.')}
+              onInput={(e) => e.target.setCustomValidity('')}
+              style={{ padding: '12px', borderRadius: '6px', border: '1px solid #ddd' }} 
+              placeholder="Digite seu e-mail" 
+            />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Senha</label>
-            <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} required style={{ padding: '12px', borderRadius: '6px', border: '1px solid #ddd' }} placeholder="Digite sua senha" />
+            <input 
+              type="password" 
+              value={senha} 
+              onChange={(e) => setSenha(e.target.value)} 
+              required 
+              onInvalid={(e) => e.target.setCustomValidity('Por favor, preencha este campo.')}
+              onInput={(e) => e.target.setCustomValidity('')}
+              style={{ padding: '12px', borderRadius: '6px', border: '1px solid #ddd' }} 
+              placeholder="Digite sua senha" 
+            />
           </div>
 
           <button type="submit" style={{ backgroundColor: '#000', color: '#fff', padding: '14px', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px' }}>

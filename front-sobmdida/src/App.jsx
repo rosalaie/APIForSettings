@@ -5,8 +5,9 @@ import CadastroCliente from './pages/CadastroCliente';
 import Produto from './pages/Produto'; 
 import CadastrarProduto from './pages/CadastrarProduto';
 import LoginAdmin from './pages/LoginAdmin';
-import './App.css';
 import LoginCliente from './pages/LoginCliente';
+import Checkout from './pages/Checkout'; // Importação da tela de pagamento
+import './App.css';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <Route path="/produto/:id" element={<Produto />} /> 
         <Route path="/admin" element={<LoginAdmin />} />
         <Route path="/admin/novo-produto" element={<CadastrarProduto />} />
+        <Route path="/checkout" element={<Checkout />} /> {/* Nova Rota */}
       </Routes>
     </BrowserRouter>
   );

@@ -415,6 +415,56 @@ app.delete('/orders/:id', async (req, res) => {
   }
 });
 
+// ==========================================
+// 5. ROTAS DE PAGAMENTO (PagBank)
+// ==========================================
+app.post('/pagamento', async (req, res) => {
+  try {
+    const { valor, descricao, cliente } = req.body;
+    
+    // Pega o token do .env. Se não tiver, usa um token vazio temporário para não quebrar a requisição
+    const TOKEN = process.env.PAGBANK_TOKEN || ''; 
+
+    const options = {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${TOKEN}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            reference_id: `PEDIDO-${Date.now()}`,
+            customer: {
+                name: cliente.nome,
+                email: cliente.email,
+                tax_id: cliente.cpf
+            },
+            items: [
+                {
+                    name: descricao,
+                    quantity: 1,
+                    unit_amount: Math.round(valor * 100) // PagBank lê o valor em centavos
+                }
+            ]
+        })
+    };
+
+    // Usando o fetch nativo do Node.js 22
+    const response = await fetch('https://sandbox.api.pagseguro.com/orders', options);
+    const data = await response.json();
+
+    if (response.ok) {
+        res.status(201).json({ sucesso: true, order: data });
+    } else {
+        console.error("Erro do PagBank:", data);
+        res.status(400).json({ sucesso: false, erro: data });
+    }
+  } catch (error) {
+    console.error("Erro interno no servidor:", error);
+    res.status(500).json({ erro: 'Falha ao processar pagamento' });
+  }
+});
+
+
 // Inicialização do Servidor
 app.listen(3000, () => {
   console.log('Servidor rodando liso na porta 3000');

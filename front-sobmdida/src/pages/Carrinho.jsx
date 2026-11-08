@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { FaInfoCircle } from 'react-icons/fa';
 
 // Dados fictícios do carrinho
 const mockCarrinho = [
@@ -26,7 +27,12 @@ function Carrinho() {
         
         {/* Lista de Itens */}
         <div style={{ flex: 2, backgroundColor: '#fff', borderRadius: '10px', padding: '25px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #eaeaea' }}>
-          <h2 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#111', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>Itens Selecionados</h2>
+          
+          {/* Título com Helper (Hover) */}
+          <h2 style={{ margin: '0 0 20px 0', fontSize: '20px', color: '#111', borderBottom: '1px solid #eee', paddingBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            Itens Selecionados
+            <FaInfoCircle style={{ color: '#64748b', cursor: 'help', fontSize: '16px' }} title="Utilize os botões de + e - para alterar a quantidade ou clique na lixeira para remover o item." />
+          </h2>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {mockCarrinho.map((item) => (
@@ -56,7 +62,12 @@ function Carrinho() {
 
         {/* Resumo do Pedido */}
         <div style={{ flex: 1, backgroundColor: '#fff', borderRadius: '10px', padding: '25px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #eaeaea' }}>
-          <h2 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#111' }}>Resumo do Pedido</h2>
+          
+          {/* Título com Helper (Hover) */}
+          <h2 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#111', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            Resumo do Pedido
+            <FaInfoCircle style={{ color: '#64748b', cursor: 'help', fontSize: '15px' }} title="O custo do frete é fixo para todas as entregas na região." />
+          </h2>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '14px', color: '#555', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '15px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -75,10 +86,10 @@ function Carrinho() {
           </div>
 
           <Link to="/login" style={{ textDecoration: 'none' }}>
-  <button style={{ backgroundColor: '#16a34a', color: '#fff', padding: '15px 40px', border: 'none', borderRadius: '8px', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s' }}>
-    Finalizar Pedido
-  </button>
-</Link>
+            <button style={{ backgroundColor: '#16a34a', color: '#fff', padding: '15px 40px', border: 'none', borderRadius: '8px', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s', width: '100%' }}>
+              Finalizar Pedido
+            </button>
+          </Link>
         </div>
 
       </main>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { FaInfoCircle } from 'react-icons/fa';
 
 function CadastroCliente() {
   return (
@@ -33,13 +34,21 @@ function CadastroCliente() {
               <input type="text" style={{ padding: '10px 15px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }} />
             </div>
 
+            {/* Campo CPF com Helper Tooltip (Hover) */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>CPF</label>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                CPF
+                <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="Digite apenas números, sem pontos ou traços." />
+              </label>
               <input type="text" style={{ padding: '10px 15px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }} />
             </div>
 
+            {/* Campo Endereço com Helper Tooltip (Hover) */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Endereço</label>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                Endereço
+                <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="Informe rua, número, bairro e CEP." />
+              </label>
               <input type="text" style={{ padding: '10px 15px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }} />
             </div>
 
@@ -48,8 +57,12 @@ function CadastroCliente() {
               <input type="email" style={{ padding: '10px 15px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }} />
             </div>
 
+            {/* Campo Senha com Helper Tooltip (Hover) */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Senha</label>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                Senha
+                <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="A senha deve conter no mínimo 8 caracteres." />
+              </label>
               <input type="password" style={{ padding: '10px 15px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }} />
             </div>
 

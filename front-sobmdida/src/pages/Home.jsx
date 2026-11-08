@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { FaInfoCircle } from 'react-icons/fa'; // Importação do helper
 
 function Home() {
   const [produtos, setProdutos] = useState([]);
@@ -10,7 +11,9 @@ function Home() {
     // Apontando para a rota exata da API configurada pela equipe
     axios.get('http://localhost:3000/products')
       .then((resposta) => {
-        setProdutos(resposta.data);
+        // Barreira Front-end: Garante que apenas os 30 primeiros produtos sejam exibidos
+        const limite30Produtos = Array.isArray(resposta.data) ? resposta.data.slice(0, 30) : [];
+        setProdutos(limite30Produtos);
         setCarregando(false);
       })
       .catch((erro) => {
@@ -29,12 +32,22 @@ function Home() {
           <span style={{ color: '#000', fontWeight: 'bold' }}>Nosso Catálogo</span>
           <Link to="/carrinho" style={{ color: '#555', textDecoration: 'none' }}>Seus Pedidos</Link>
           <Link to="/admin" style={{ color: '#555', textDecoration: 'none' }}>Área Admin</Link>
-<Link to="/login" style={{ color: '#555', textDecoration: 'none' }}>Sua Conta</Link>        </nav>
+          <Link to="/login" style={{ color: '#555', textDecoration: 'none' }}>Sua Conta</Link>
+        </nav>
       </header>
 
       {/* Vitrine de Produtos */}
       <main style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
-        <h2 style={{ fontSize: '28px', color: '#111', marginBottom: '10px' }}>🎁 Produtos em Destaque</h2>
+        
+        {/* Título com o Helper (Tooltip) */}
+        <h2 style={{ fontSize: '28px', color: '#111', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          🎁 Produtos em Destaque
+          <FaInfoCircle 
+            style={{ color: '#64748b', cursor: 'help', fontSize: '18px' }} 
+            title="Exibindo os nossos 30 produtos mais recentes e populares. Clique em 'Ver Produto' para personalizar." 
+          />
+        </h2>
+        
         <p style={{ color: '#666', marginBottom: '40px' }}>Produtos personalizados com qualidade e carinho para momentos únicos!</p>
         
         {carregando ? (
@@ -52,8 +65,8 @@ function Home() {
                 {/* Imagem do Produto ajustada para ler "imagemUrl" */}
                 <div style={{ height: '200px', backgroundColor: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                  {(produto.imagemUrl || produto.imagem) ? (
-  <img src={produto.imagemUrl || produto.imagem} alt={produto.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-) : (
+                  <img src={produto.imagemUrl || produto.imagem} alt={produto.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
                     <span style={{ color: '#999' }}>Sem Imagem</span>
                   )}
                 </div>
@@ -67,7 +80,7 @@ function Home() {
                     <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#c62828' }}>
                       R$ {Number(produto.preco).toFixed(2).replace('.', ',')}
                     </span>
-                    <Link to="/produto">
+                    <Link to={`/produto/${produto.id}`}>
                       <button style={{ backgroundColor: '#c62828', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
                         Ver Produto
                       </button>

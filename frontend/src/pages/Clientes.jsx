@@ -19,6 +19,7 @@ export default function Clientes() {
 
   // Campos do formulário (Padrão E-commerce)
   const [nome, setNome] = useState('');
+  const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
   const [cep, setCep] = useState('');
@@ -49,12 +50,10 @@ export default function Clientes() {
       .finally(() => setLoadingCidades(false));
   }, [uf]);
 
-  // Reseta para a página 1 ao pesquisar
   useEffect(() => {
     setPaginaAtual(1);
   }, [busca]);
 
-  // Autopreenchimento por CEP (ViaCEP)
   const buscarCep = async (valorCep) => {
     const cepLimpo = valorCep.replace(/\D/g, '');
     setCep(valorCep);
@@ -81,7 +80,6 @@ export default function Clientes() {
       const res = await fetch('http://localhost:3000/clients');
       if (res.ok) {
         const data = await res.json();
-        // Filtra para exibir apenas clientes de balcão/loja
         const listaClientes = Array.isArray(data) 
           ? data.filter(c => c.origem === 'BALCAO' || c.role === 'CLIENT' || c.email?.includes('balcao_')) 
           : [];
@@ -101,6 +99,7 @@ export default function Clientes() {
   const limparFormulario = () => {
     setClienteEditandoId(null);
     setNome('');
+    setCpf('');
     setEmail('');
     setTelefone('');
     setCep('');
@@ -120,6 +119,7 @@ export default function Clientes() {
   const abrirModalEdicao = (c) => {
     setClienteEditandoId(c.id);
     setNome(c.nome || '');
+    setCpf(c.cpf || '');
     setEmail(c.email || '');
     setTelefone(c.telefone || '');
     setCep(c.cep || '');
@@ -140,7 +140,21 @@ export default function Clientes() {
       return;
     }
 
-    // Formatação do Endereço Completo para E-commerce
+    if (!cpf.trim()) {
+      alert('Por favor, informe o CPF do cliente.');
+      return;
+    }
+
+    if (!telefone.trim()) {
+      alert('Por favor, informe o telefone/WhatsApp do cliente.');
+      return;
+    }
+
+    if (!cep.trim() || !rua.trim() || !numero.trim() || !bairro.trim() || !uf.trim() || !cidade.trim()) {
+      alert('Por favor, preencha todos os campos obrigatórios do endereço (CEP, Rua, Número, Bairro, UF e Cidade).');
+      return;
+    }
+
     const partesEndereco = [];
     if (rua) partesEndereco.push(rua);
     if (numero) partesEndereco.push(`Nº ${numero}`);
@@ -153,41 +167,54 @@ export default function Clientes() {
 
     const payload = {
       nome: nome.trim(),
+      cpf: cpf.trim(),
       email: email.trim() || undefined,
-      telefone: telefone.trim() || undefined,
-      endereco: enderecoFormatado || undefined,
-      cep: cep || undefined,
-      rua: rua || undefined,
-      numero: numero || undefined,
-      complemento: complemento || undefined,
-      bairro: bairro || undefined,
-      cidade: cidade || undefined,
-      uf: uf || undefined,
+      telefone: telefone.trim(),
+      endereco: enderecoFormatado,
+      cep: cep.trim(),
+      rua: rua.trim(),
+      numero: numero.trim(),
+      complemento: complemento.trim() || undefined,
+      bairro: bairro.trim(),
+      cidade: cidade.trim(),
+      uf: uf.trim(),
       origem: 'BALCAO'
     };
 
     try {
       const isEdicao = Boolean(clienteEditandoId);
-      const url = isEdicao 
-        ? `http://localhost:3000/clients/${clienteEditandoId}`
-        : 'http://localhost:3000/register';
-      
-      const method = isEdicao ? 'PUT' : 'POST';
+      let res;
 
-      const res = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      if (isEdicao) {
+        res = await fetch(`http://localhost:3000/clients/${clienteEditandoId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => null);
 
-      if (res.ok) {
+        if (!res || !res.ok) {
+          res = await fetch(`http://localhost:3000/users/${clienteEditandoId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }).catch(() => null);
+        }
+      } else {
+        res = await fetch('http://localhost:3000/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => null);
+      }
+
+      if (res && res.ok) {
         alert(isEdicao ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
         setModalAberto(false);
         limparFormulario();
         carregarClientes();
       } else {
-        const errData = await res.json().catch(() => null);
-        alert(errData?.error || 'Erro ao salvar cliente.');
+        const errData = res ? await res.json().catch(() => null) : null;
+        alert(`Erro ao salvar cliente: ${errData?.error || 'Certifique-se de ter reiniciado o backend após adicionar a rota de edição.'}`);
       }
     } catch (err) {
       alert('Erro de conexão ao salvar cliente.');
@@ -208,15 +235,14 @@ export default function Clientes() {
     }
   };
 
-  // 1. FILTRAGEM
   const clientesFiltrados = clientes.filter(c => {
     const termo = busca.toLowerCase();
     const nomeC = String(c.nome || '').toLowerCase();
     const emailC = String(c.email || '').toLowerCase();
-    return nomeC.includes(termo) || emailC.includes(termo);
+    const cpfC = String(c.cpf || '').toLowerCase();
+    return nomeC.includes(termo) || emailC.includes(termo) || cpfC.includes(termo);
   });
 
-  // 2. CÁLCULO DA PAGINAÇÃO (20 por página)
   const totalPaginas = Math.ceil(clientesFiltrados.length / itensPorPagina) || 1;
   const indiceInicial = (paginaAtual - 1) * itensPorPagina;
   const clientesPaginados = clientesFiltrados.slice(indiceInicial, indiceInicial + itensPorPagina);
@@ -243,7 +269,7 @@ export default function Clientes() {
           <FaSearch style={{ color: '#94a3b8', marginRight: '10px' }} />
           <input
             type="text"
-            placeholder="Buscar por nome ou e-mail..."
+            placeholder="Buscar por nome, CPF ou e-mail..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
@@ -258,6 +284,7 @@ export default function Clientes() {
               <thead>
                 <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left' }}>
                   <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>NOME / CONTATO</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>CPF</th>
                   <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>ENDEREÇO</th>
                   <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b', textAlign: 'right' }}>AÇÕES</th>
                 </tr>
@@ -265,7 +292,7 @@ export default function Clientes() {
               <tbody>
                 {clientesPaginados.length === 0 ? (
                   <tr>
-                    <td colSpan="3" style={{ textAlign: 'center', color: '#94a3b8', padding: '30px' }}>
+                    <td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8', padding: '30px' }}>
                       Nenhum cliente encontrado.
                     </td>
                   </tr>
@@ -279,6 +306,9 @@ export default function Clientes() {
                         <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>
                           {c.email || 'Sem e-mail'} | {c.telefone || 'Sem telefone'}
                         </div>
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#475569', fontSize: '13px', fontWeight: '500' }}>
+                        {c.cpf || 'Não informado'}
                       </td>
                       <td style={{ padding: '14px 16px', color: '#475569', fontSize: '13px' }}>
                         {c.endereco || 'Não informado'}
@@ -391,16 +421,29 @@ export default function Clientes() {
             </div>
 
             <form onSubmit={salvarCliente} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Nome Completo *</label>
-                <input 
-                  type="text" 
-                  value={nome} 
-                  onChange={e => setNome(e.target.value)} 
-                  placeholder="Ex: Maria Silva"
-                  required
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Nome Completo *</label>
+                  <input 
+                    type="text" 
+                    value={nome} 
+                    onChange={e => setNome(e.target.value)} 
+                    placeholder="Ex: Maria Silva"
+                    required
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>CPF *</label>
+                  <input 
+                    type="text" 
+                    value={cpf} 
+                    onChange={e => setCpf(e.target.value)} 
+                    placeholder="000.000.000-00"
+                    required
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -415,12 +458,13 @@ export default function Clientes() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Telefone / WhatsApp</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Telefone / WhatsApp *</label>
                   <input 
                     type="text" 
                     value={telefone} 
                     onChange={e => setTelefone(e.target.value)} 
                     placeholder="(00) 00000-0000"
+                    required
                     style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
                   />
                 </div>
@@ -429,28 +473,30 @@ export default function Clientes() {
               {/* SEÇÃO ENDEREÇO E-COMMERCE */}
               <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '10px', marginTop: '6px' }}>
                 <span style={{ fontSize: '13px', fontWeight: '700', color: '#2563eb', display: 'block', marginBottom: '10px' }}>
-                  ENDEREÇO DE ENTREGA
+                  ENDEREÇO DE ENTREGA (OBRIGATÓRIO)
                 </span>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px', marginBottom: '10px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>CEP</label>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>CEP *</label>
                     <input 
                       type="text" 
                       value={cep} 
                       onChange={e => buscarCep(e.target.value)} 
                       placeholder="00000-000"
                       maxLength={9}
+                      required
                       style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
                     />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Rua / Logradouro</label>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Rua / Logradouro *</label>
                     <input 
                       type="text" 
                       value={rua} 
                       onChange={e => setRua(e.target.value)} 
                       placeholder="Ex: Av. Brasil"
+                      required
                       style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
                     />
                   </div>
@@ -458,17 +504,18 @@ export default function Clientes() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '10px', marginBottom: '10px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Número</label>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Número *</label>
                     <input 
                       type="text" 
                       value={numero} 
                       onChange={e => setNumero(e.target.value)} 
                       placeholder="123"
+                      required
                       style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
                     />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Complemento</label>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Complemento (Opcional)</label>
                     <input 
                       type="text" 
                       value={complemento} 
@@ -478,12 +525,13 @@ export default function Clientes() {
                     />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Bairro</label>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Bairro *</label>
                     <input 
                       type="text" 
                       value={bairro} 
                       onChange={e => setBairro(e.target.value)} 
                       placeholder="Centro"
+                      required
                       style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
                     />
                   </div>
@@ -491,10 +539,11 @@ export default function Clientes() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Estado (UF)</label>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Estado (UF) *</label>
                     <select 
                       value={uf} 
                       onChange={e => { setUf(e.target.value); setCidade(''); }}
+                      required
                       style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', boxSizing: 'border-box' }}
                     >
                       <option value="">UF...</option>
@@ -505,11 +554,12 @@ export default function Clientes() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Município / Cidade</label>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Município / Cidade *</label>
                     <select 
                       value={cidade} 
                       onChange={e => setCidade(e.target.value)}
                       disabled={!uf || loadingCidades}
+                      required
                       style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', boxSizing: 'border-box' }}
                     >
                       <option value="">{loadingCidades ? 'Carregando cidades...' : 'Selecione a cidade...'}</option>
@@ -533,7 +583,7 @@ export default function Clientes() {
                   type="submit" 
                   style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
                 >
-                  {clienteEditandoId ? 'Atualizar Cliente' : 'Salvar Cliente'}
+                  {clienteEditandoId ? 'Salvar Cliente' : 'Salvar Cliente'}
                 </button>
               </div>
             </form>

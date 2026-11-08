@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaShoppingCart, FaUser, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaShoppingCart, FaUser, FaChevronLeft, FaChevronRight, FaFilter } from 'react-icons/fa';
 
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [produtos, setProdutos] = useState([]);
   const [busca, setBusca] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('PENDENTES'); // Padrão: Apenas Pendentes (Pedido Feito)
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [modalClienteAberto, setModalClienteAberto] = useState(false);
@@ -73,7 +74,7 @@ export default function Pedidos() {
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [busca]);
+  }, [busca, filtroStatus]);
 
   const limparFormulario = () => {
     setPedidoEditandoId(null);
@@ -241,7 +242,6 @@ export default function Pedidos() {
     try {
       let res;
       if (isEdicao) {
-        // Tenta primeiro via PUT; se não existir no backend, tenta PATCH no status/pedido
         res = await fetch(`http://localhost:3000/orders/${pedidoEditandoId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -274,7 +274,7 @@ export default function Pedidos() {
       }
     } catch (err) {
       console.error(err);
-      alert('Erro de conexão ao salvar pedido. Verifique se o servidor backend está rodando em http://localhost:3000.');
+      alert('Erro de conexão ao salvar pedido.');
     }
   };
 
@@ -310,11 +310,23 @@ export default function Pedidos() {
     }
   };
 
-  // 1. FILTRAGEM DE PEDIDOS NA TABELA PRINCIPAL
+  // 1. FILTRAGEM DE PEDIDOS (POR PADRÃO TRAZ APENAS OS PENDENTES / PEDIDO FEITO)
   const pedidosFiltrados = pedidos.filter(p => {
     const nomeCliente = p.cliente?.nome?.toLowerCase() || '';
     const termo = busca.toLowerCase();
-    return nomeCliente.includes(termo) || String(p.id).includes(termo);
+    const passaTexto = nomeCliente.includes(termo) || String(p.id).includes(termo);
+
+    const stAtual = (p.status === 'PAGO' ? 'PEDIDO FEITO' : (p.status || 'PEDIDO FEITO')).toUpperCase();
+
+    let passaStatus = true;
+    if (filtroStatus === 'PENDENTES') {
+      // Exibe apenas pedidos situados como 'PEDIDO FEITO' ou 'PENDENTE'
+      passaStatus = stAtual === 'PEDIDO FEITO' || stAtual === 'PENDENTE';
+    } else if (filtroStatus !== 'TODOS') {
+      passaStatus = stAtual === filtroStatus;
+    }
+
+    return passaTexto && passaStatus;
   });
 
   // 2. ORDENAÇÃO E BUSCA PARCIAL DE CLIENTES
@@ -371,7 +383,7 @@ export default function Pedidos() {
         <div>
           <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Gestão de Pedidos</h2>
           <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
-            Acompanhe e gerencie as vendas realizadas ({pedidosFiltrados.length} pedidos).
+            Acompanhe e gerencie as vendas realizadas ({pedidosFiltrados.length} exibidos).
           </p>
         </div>
         <button
@@ -383,15 +395,35 @@ export default function Pedidos() {
       </div>
 
       <div style={{ background: '#fff', padding: '24px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', marginBottom: '20px' }}>
-          <FaSearch style={{ color: '#94a3b8', marginRight: '10px' }} />
-          <input
-            type="text"
-            placeholder="Buscar pedido por cliente ou número..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
-          />
+        
+        {/* BARRA DE BUSCA E FILTROS ADICIONAIS */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 2, minWidth: '240px', display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px' }}>
+            <FaSearch style={{ color: '#94a3b8', marginRight: '10px' }} />
+            <input
+              type="text"
+              placeholder="Buscar pedido por cliente ou número..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
+            />
+          </div>
+
+          <div style={{ flex: 1, minWidth: '200px', display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '0 14px', borderRadius: '8px' }}>
+            <FaFilter style={{ color: '#94a3b8', marginRight: '8px', fontSize: '12px' }} />
+            <select
+              value={filtroStatus}
+              onChange={(e) => setFiltroStatus(e.target.value)}
+              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '13px', fontWeight: '600', color: '#334155', cursor: 'pointer', padding: '10px 0' }}
+            >
+              <option value="PENDENTES">Apenas Pendentes (Pedido Feito)</option>
+              <option value="TODOS">Todos os Status</option>
+              <option value="EM_PREPARACAO">Em Preparação</option>
+              <option value="ENVIADO">Enviados</option>
+              <option value="ENTREGUE">Entregues</option>
+              <option value="CANCELADO">Cancelados</option>
+            </select>
+          </div>
         </div>
 
         {loading ? (
@@ -413,7 +445,7 @@ export default function Pedidos() {
                 {pedidosPaginados.length === 0 ? (
                   <tr>
                     <td colSpan="6" style={{ textAlign: 'center', color: '#94a3b8', padding: '30px' }}>
-                      Nenhum pedido encontrado.
+                      Nenhum pedido encontrado com os filtros aplicados.
                     </td>
                   </tr>
                 ) : (
@@ -533,7 +565,11 @@ export default function Pedidos() {
                     onClick={() => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas))}
                     disabled={paginaAtual === totalPaginas}
                     style={{
-                      background: paginaAtual === totalPaginas ? 'not-allowed' : 'pointer',
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      padding: '6px 12px',
+                      cursor: paginaAtual === totalPaginas ? 'not-allowed' : 'pointer',
                       opacity: paginaAtual === totalPaginas ? 0.5 : 1,
                       display: 'flex',
                       alignItems: 'center',
@@ -842,7 +878,7 @@ export default function Pedidos() {
                   type="submit" 
                   style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
                 >
-                  {pedidoEditandoId ? 'Atualizar Pedido' : 'Salvar Pedido'}
+                  {pedidoEditandoId ? 'Salvar Pedido' : 'Salvar Pedido'}
                 </button>
               </div>
             </form>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaCloudUploadAlt, FaSpinner, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaCloudUploadAlt, FaSpinner, FaChevronLeft, FaChevronRight, FaQuestionCircle, FaKeyboard } from 'react-icons/fa';
 
 export default function Produtos() {
   const [produtos, setProdutos] = useState([]);
@@ -8,6 +8,9 @@ export default function Produtos() {
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState(null);
+
+  // ESTADO DO MODAL DE AJUDA (HELPER TECLA H)
+  const [modalAjudaAberto, setModalAjudaAberto] = useState(false);
 
   // ESTADOS DA PAGINAÇÃO
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -28,6 +31,23 @@ export default function Produtos() {
   const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
 
   const IMGBB_API_KEY = '7977dacd0664e5cededa23464cff6599';
+
+  // OUVINTE DE TECLADO PARA O HELPER (TECLA H)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignora a tecla 'h' caso o usuário esteja digitando em um input/textarea
+      const tag = e.target.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+      if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        setModalAjudaAberto(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const fazerUploadImagemImgBB = async () => {
     if (!imagemArquivo) {
@@ -78,7 +98,6 @@ export default function Produtos() {
     carregarDados();
   }, []);
 
-  // Reseta para a primeira página sempre que o usuário pesquisar algo
   useEffect(() => {
     setPaginaAtual(1);
   }, [busca]);
@@ -154,21 +173,38 @@ export default function Produtos() {
   const salvarProduto = async (e) => {
     e.preventDefault();
 
+    const nomeFormatado = nome.trim();
+
+    if (!nomeFormatado || !categoriaId) {
+      alert('Preencha o Nome e selecione uma Categoria.');
+      return;
+    }
+
     const valorPreco = parseFloat(preco);
     if (isNaN(valorPreco) || valorPreco <= 0) {
       alert('O preço precisa ser um valor maior que zero!');
       return;
     }
 
-    if (!nome.trim() || !categoriaId) {
-      alert('Preencha o Nome e selecione uma Categoria.');
+    // VERIFICAÇÃO DE PRODUTOS DUPLICADOS
+    const isEdicao = !!produtoEditando;
+    const jaExiste = produtos.some(p => {
+      const mesmoNome = p.nome?.trim().toLowerCase() === nomeFormatado.toLowerCase();
+      // Se for edição, ignora o próprio produto atual
+      if (isEdicao) {
+        return mesmoNome && String(p.id) !== String(produtoEditando.id);
+      }
+      return mesmoNome;
+    });
+
+    if (jaExiste) {
+      alert(`Não é permitido salvar! Já existe um produto cadastrado com o mesmo nome ("${nomeFormatado}").`);
       return;
     }
 
     try {
       setUploadingImg(true);
 
-      // Upload da imagem para o ImgBB antes de salvar o produto
       let urlImagemFinal = '';
       try {
         urlImagemFinal = await fazerUploadImagemImgBB();
@@ -178,14 +214,13 @@ export default function Produtos() {
         urlImagemFinal = imagemUrl || '';
       }
 
-      const isEdicao = !!produtoEditando;
       const url = isEdicao 
         ? `http://localhost:3000/products/${produtoEditando.id}` 
         : 'http://localhost:3000/products';
       const method = isEdicao ? 'PUT' : 'POST';
 
       const payload = {
-        nome: nome.trim(),
+        nome: nomeFormatado,
         descricao: descricao.trim(),
         preco: valorPreco,
         categoriaId: parseInt(categoriaId, 10),
@@ -225,7 +260,7 @@ export default function Produtos() {
       if (res.ok) {
         setProdutos(produtos.filter(p => p.id !== id));
       } else {
-        alert('Erro ao excluir produto.');
+        alert('Erro ao excluir produto. O produto pode estar associado a pedidos existentes.');
       }
     } catch (err) {
       alert('Erro de conexão ao excluir produto.');
@@ -254,12 +289,24 @@ export default function Produtos() {
             Gerencie as peças e produtos disponíveis na loja ({produtosFiltrados.length} itens cadastrados).
           </p>
         </div>
-        <button 
-          onClick={abrirModalNovo}
-          style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <FaPlus style={{ fontSize: '12px' }} /> Novo Produto
-        </button>
+
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {/* BOTÃO HELPER DE ATALHO */}
+          <button
+            onClick={() => setModalAjudaAberto(true)}
+            title="Pressione a tecla H para abrir o Guia de Ajuda"
+            style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+          >
+            <FaQuestionCircle style={{ color: '#2563eb' }} /> Ajuda [H]
+          </button>
+
+          <button 
+            onClick={abrirModalNovo}
+            style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <FaPlus style={{ fontSize: '12px' }} /> Novo Produto
+          </button>
+        </div>
       </div>
 
       <div style={{ background: '#fff', padding: '24px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
@@ -534,7 +581,7 @@ export default function Produtos() {
                   style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer', opacity: uploadingImg ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   {uploadingImg && <FaSpinner style={{ animation: 'spin 1s linear infinite' }} />}
-                  {produtoEditando ? 'Atualizar Peça' : 'Confirmar'}
+                  {produtoEditando ? 'Salvar' : 'Confirmar'}
                 </button>
               </div>
             </form>
@@ -580,6 +627,49 @@ export default function Produtos() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HELPER DE ATALHO TECLA H */}
+      {modalAjudaAberto && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+          <div style={{ background: '#fff', borderRadius: '14px', width: '100%', maxWidth: '440px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FaKeyboard style={{ color: '#2563eb', fontSize: '20px' }} />
+                <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>Guia & Atalhos do Sistema</h3>
+              </div>
+              <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalAjudaAberto(false)} />
+            </div>
+
+            <div style={{ fontSize: '13px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px 12px' }}>
+                <strong style={{ color: '#1e40af' }}>Atalhos Rápidos:</strong>
+                <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px', lineHeight: '1.6' }}>
+                  <li><b>Tecla H:</b> Abre/fecha este menu de ajuda a qualquer momento.</li>
+                  <li><b>Esc:</b> Fecha os modais abertos.</li>
+                </ul>
+              </div>
+
+              <div style={{ lineHeight: '1.6' }}>
+                <strong style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>Regras do Catálogo de Produtos:</strong>
+                <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                  <li><b>Duplicidade:</b> Não é permitido cadastrar dois produtos com o mesmo nome.</li>
+                  <li><b>Imagens:</b> Você pode fazer upload de um arquivo direto do computador (via ImgBB) ou colar o link de uma imagem online.</li>
+                  <li><b>Exclusão:</b> Não é possível excluir um produto se ele estiver sendo utilizado em um pedido realizado.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
+              <button
+                onClick={() => setModalAjudaAberto(false)}
+                style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Entendido
+              </button>
+            </div>
           </div>
         </div>
       )}

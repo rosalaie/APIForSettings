@@ -156,6 +156,51 @@ async function deletarCliente(req, res) {
 
 app.delete('/users/:id', deletarCliente);
 app.delete('/clients/:id', deletarCliente);
+// Editar dados do cliente (Front-end / Dashboard)
+app.put('/clients/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      nome, 
+      cpf, 
+      email, 
+      telefone, 
+      endereco,
+      rua,
+      numero,
+      complemento,
+      bairro,
+      cidade,
+      uf
+    } = req.body;
+
+    if (!nome) {
+      return res.status(400).json({ error: 'O Nome é obrigatório.' });
+    }
+
+    const enderecoCompleto = endereco || [rua, numero, complemento, bairro, cidade, uf].filter(Boolean).join(', ');
+
+    const clienteAtualizado = await prisma.users.update({
+      where: { id: Number(id) },
+      data: {
+        nome,
+        ...(cpf !== undefined && { cpf }),
+        ...(email !== undefined && { email }),
+        ...(telefone !== undefined && { telefone }),
+        ...(enderecoCompleto && { endereco: enderecoCompleto })
+      }
+    });
+
+    const { senha: _, ...dadosCliente } = clienteAtualizado;
+    res.json({ message: 'Cliente atualizado com sucesso!', cliente: dadosCliente });
+  } catch (error) {
+    console.error("Erro ao atualizar cliente:", error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Este e-mail ou CPF já pertence a outro cliente.' });
+    }
+    res.status(500).json({ error: 'Erro ao atualizar cliente no servidor.' });
+  }
+});
 
 
 // ==========================================
@@ -294,6 +339,56 @@ app.post('/categories', async (req, res) => {
       return res.status(400).json({ error: 'Esta categoria já está cadastrada.' });
     }
     res.status(500).json({ error: 'Erro ao cadastrar categoria.' });
+  }
+});
+
+// Editar categoria
+app.put('/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, descricao } = req.body;
+
+    if (!nome) {
+      return res.status(400).json({ error: 'O nome da categoria é obrigatório.' });
+    }
+
+    const categoriaAtualizada = await prisma.categories.update({
+      where: { id: Number(id) },
+      data: {
+        nome,
+        ...(descricao !== undefined && { descricao })
+      }
+    });
+
+    res.json(categoriaAtualizada);
+  } catch (error) {
+    console.error('Erro ao atualizar categoria:', error);
+    res.status(500).json({ error: 'Não foi possível atualizar a categoria.' });
+  }
+});
+
+// Editar categoria
+app.put('/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, descricao } = req.body;
+
+    if (!nome) {
+      return res.status(400).json({ error: 'O nome da categoria é obrigatório.' });
+    }
+
+    const categoriaAtualizada = await prisma.categories.update({
+      where: { id: Number(id) },
+      data: {
+        nome,
+        ...(descricao !== undefined && { descricao })
+      }
+    });
+
+    res.json(categoriaAtualizada);
+  } catch (error) {
+    console.error('Erro ao atualizar categoria:', error);
+    res.status(500).json({ error: 'Não foi possível atualizar a categoria.' });
   }
 });
 

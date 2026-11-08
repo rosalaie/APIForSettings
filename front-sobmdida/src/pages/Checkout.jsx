@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { FaInfoCircle } from 'react-icons/fa';
 
 function Checkout() {
   const [nome, setNome] = useState('');
@@ -69,15 +70,24 @@ function Checkout() {
 
         <form onSubmit={handlePagamento} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div>
-            <label style={{ fontSize: '13px', fontWeight: 'bold' }}>Nome Completo</label>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              Nome Completo
+              <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="Insira o seu nome completo conforme consta no seu documento de identificação." />
+            </label>
             <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ width: '95%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ddd' }} />
           </div>
           <div>
-            <label style={{ fontSize: '13px', fontWeight: 'bold' }}>E-mail</label>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              E-mail
+              <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="Utilize o e-mail onde deseja receber as notificações sobre o estado do seu pedido." />
+            </label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '95%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ddd' }} />
           </div>
           <div>
-            <label style={{ fontSize: '13px', fontWeight: 'bold' }}>CPF</label>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              CPF
+              <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="Introduza apenas os números do seu CPF, sem pontos ou traços." />
+            </label>
             <input type="text" value={cpf} onChange={(e) => setCpf(e.target.value)} required placeholder="Apenas números" style={{ width: '95%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ddd' }} />
           </div>
           

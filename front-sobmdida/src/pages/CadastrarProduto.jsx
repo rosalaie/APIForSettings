@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { FaInfoCircle } from 'react-icons/fa';
 
 function CadastrarProduto() {
   const [nome, setNome] = useState('');
@@ -37,7 +38,10 @@ function CadastrarProduto() {
         <form onSubmit={handleSalvarProduto} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Nome do Produto</label>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              Nome do Produto
+              <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="Insira um nome claro e objetivo para o catálogo." />
+            </label>
             <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ padding: '12px', borderRadius: '6px', border: '1px solid #ddd' }} placeholder="Ex: Caneca Personalizada" />
           </div>
 
@@ -53,13 +57,19 @@ function CadastrarProduto() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-              <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Preço Base (R$)</label>
+              <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                Preço Base (R$)
+                <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="Utilize ponto para separar os cêntimos. Ex: 49.90" />
+              </label>
               <input type="number" step="0.01" value={preco} onChange={(e) => setPreco(e.target.value)} required style={{ padding: '12px', borderRadius: '6px', border: '1px solid #ddd' }} placeholder="0.00" />
             </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>Imagem do Produto</label>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              Imagem do Produto
+              <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="Selecione um ficheiro de imagem com boa resolução (JPG ou PNG)." />
+            </label>
             <input type="file" accept="image/*" onChange={(e) => setImagem(e.target.files[0])} required style={{ padding: '10px', border: '1px dashed #bbb', borderRadius: '6px', cursor: 'pointer' }} />
           </div>
 

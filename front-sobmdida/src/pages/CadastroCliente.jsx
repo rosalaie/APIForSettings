@@ -12,7 +12,7 @@ function CadastroCliente() {
         <nav style={{ display: 'flex', gap: '25px', fontWeight: '500', color: '#555', fontSize: '14px' }}>
           <Link to="/" style={{ color: '#555', textDecoration: 'none' }}>Nosso Catálogo</Link>
           <Link to="/carrinho" style={{ color: '#555', textDecoration: 'none' }}>Seus Pedidos</Link>
-          <span style={{ cursor: 'pointer' }}>Nosso Contato</span>
+          <Link to="/admin" style={{ color: '#555', textDecoration: 'none' }}>Área Admin</Link>
           <span style={{ cursor: 'pointer', fontWeight: 'bold', color: '#000' }}>Sua Conta</span>
         </nav>
       </header>

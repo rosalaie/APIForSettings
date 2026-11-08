@@ -1,6 +1,9 @@
-// frontend/src/App.js
 import './App.css';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom/client';
+import AppRoutes from './routes/AppRoutes.jsx';
+import Login from './pages/Login.jsx';
+import Register from './pages/Register.jsx';
 import { FaStore, FaUsers, FaBoxOpen, FaTags, FaChartBar, FaDollarSign, FaShoppingBag, FaSearch, FaTachometerAlt } from "react-icons/fa";
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
@@ -16,7 +19,6 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Função para pegar as iniciais do nome para o Avatar da Sidebar
   const obterIniciais = (nome) => {
     if (!nome) return 'AD';
     const partes = nome.trim().split(' ');
@@ -24,22 +26,24 @@ function App() {
     return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
   };
 
-  // Carrega o usuário autenticado e verifica sessão
   useEffect(() => {
     const userStorage = localStorage.getItem('user');
-    if (!userStorage) {
-      // Se não estiver logado, redireciona para a tela de login
-      navigate('/login');
+    if (userStorage) {
+      try {
+        setUsuarioLogado(JSON.parse(userStorage));
+      } catch (e) {
+        setUsuarioLogado({ nome: 'Administrador', email: 'admin@admin.com' });
+      }
     } else {
-      setUsuarioLogado(JSON.parse(userStorage));
+      setUsuarioLogado({ nome: 'Administrador', email: 'admin@admin.com' });
     }
-  }, [navigate]);
+  }, [location.pathname]);
 
-  // Função REAL de LOGOUT
   const handleLogout = () => {
     if (window.confirm('Deseja realmente sair do sistema?')) {
       localStorage.removeItem('user');
       localStorage.removeItem('token');
+      setUsuarioLogado(null);
       navigate('/login');
     }
   };
@@ -63,9 +67,13 @@ function App() {
       ]);
 
       if (resUsers && resUsers.ok) {
-        const usersData = await resUsers.json();
-        setClientes(Array.isArray(usersData) ? usersData : []);
-      }
+  const usersData = await resUsers.json();
+  // FILTRO: Garante que o Dashboard só considere clientes do balcão/loja
+  const apenasClientes = Array.isArray(usersData) 
+    ? usersData.filter(u => u.origem === 'BALCAO' || u.role === 'CLIENT' || u.email?.includes('balcao_'))
+    : [];
+  setClientes(apenasClientes);
+}
       
       if (resPedidos && resPedidos.ok) {
         const pedidosData = await resPedidos.json();
@@ -96,73 +104,79 @@ function App() {
   ).length;
 
   const clientesFiltrados = clientes.filter(c => 
-    c.nome?.toLowerCase().includes(busca.toLowerCase()) ||
-    c.email?.toLowerCase().includes(busca.toLowerCase())
+    (c.nome || c.name || '').toLowerCase().includes(busca.toLowerCase()) ||
+    (c.email || '').toLowerCase().includes(busca.toLowerCase())
   );
 
   return (
     <div className="app-layout">
       {/* 1. SIDEBAR */}
-      <aside className="sidebar">
-        <div className="sidebar-title">
-          <div className="logo-brand">
-            <span className="logo-sob">SOB</span>
-            <span className="logo-mdida">MDIDA</span>
+      <aside className="sidebar" style={styles.sidebar}>
+        <div>
+          <div className="sidebar-title">
+            <div className="logo-brand">
+              <span className="logo-sob">SOB</span>
+              <span className="logo-mdida">MDIDA</span>
+            </div>
           </div>
+          
+          <nav className="sidebar-menu">
+            <Link to="/" className={`menu-item ${location.pathname === '/' ? 'active' : ''}`}>
+              <div className='logo'>     
+                <FaTachometerAlt /> 
+                <span> Dashboard </span>
+              </div>
+            </Link>
+
+            <Link to="/clientes" className={`menu-item ${location.pathname === '/clientes' ? 'active' : ''}`}>
+              <div className='logo'>     
+                <FaUsers /> 
+                <span> Clientes </span>
+              </div>
+            </Link>
+
+            <Link to="/produtos" className={`menu-item ${location.pathname === '/produtos' ? 'active' : ''}`}>
+              <div className='logo'>     
+                <FaBoxOpen /> 
+                <span> Produtos </span>
+              </div>
+            </Link>
+
+            <Link to="/pedidos" className={`menu-item ${location.pathname === '/pedidos' ? 'active' : ''}`}>
+              <div className='logo'>     
+                <FaShoppingBag /> 
+                <span> Pedidos </span>
+              </div>
+            </Link>
+
+            <Link to="/categorias" className={`menu-item ${location.pathname === '/categorias' ? 'active' : ''}`}>
+              <div className='logo'>     
+                <FaTags /> 
+                <span> Categorias </span>
+              </div>
+            </Link>
+
+            <Link to="/relatorios" className={`menu-item ${location.pathname === '/relatorios' ? 'active' : ''}`}>
+              <div className='logo'>     
+                <FaChartBar /> 
+                <span> Relatórios </span>
+              </div>
+            </Link>
+          </nav>
         </div>
-        
-        <nav className="sidebar-menu">
-          <Link to="/" className={`menu-item ${location.pathname === '/' ? 'active' : ''}`}>
-            <div className='logo'>     
-              <FaTachometerAlt /> 
-              <span> Dashboard </span>
-            </div>
-          </Link>
 
-          <Link to="/clientes" className={`menu-item ${location.pathname === '/clientes' ? 'active' : ''}`}>
-            <div className='logo'>     
-              <FaUsers /> 
-              <span> Clientes </span>
-            </div>
-          </Link>
-
-          <Link to="/produtos" className={`menu-item ${location.pathname === '/produtos' ? 'active' : ''}`}>
-            <div className='logo'>     
-              <FaBoxOpen /> 
-              <span> Produtos </span>
-            </div>
-          </Link>
-
-          <Link to="/pedidos" className={`menu-item ${location.pathname === '/pedidos' ? 'active' : ''}`}>
-            <div className='logo'>     
-              <FaShoppingBag /> 
-              <span> Pedidos </span>
-            </div>
-          </Link>
-
-          <Link to="/categorias" className={`menu-item ${location.pathname === '/categorias' ? 'active' : ''}`}>
-            <div className='logo'>     
-              <FaTags /> 
-              <span> Categorias </span>
-            </div>
-          </Link>
-
-          <Link to="/relatorios" className={`menu-item ${location.pathname === '/relatorios' ? 'active' : ''}`}>
-            <div className='logo'>     
-              <FaChartBar /> 
-              <span> Relatórios </span>
-            </div>
-          </Link>
-        </nav>
-
-        {/* USUÁRIO REAL LOGADO */}
-        <div className="sidebar-user">
-          <div className="avatar-circle">
-            {obterIniciais(usuarioLogado?.nome)}
+        {/* USUÁRIO NO CANTO INFERIOR ESQUERDO DA TELA */}
+        <div className="sidebar-user" style={styles.sidebarUser}>
+          <div className="avatar-circle" style={styles.avatarCircle}>
+            {obterIniciais(usuarioLogado?.nome || usuarioLogado?.name)}
           </div>
-          <div className="user-info">
-            <div className="user-name">{usuarioLogado?.nome || 'Administrador'}</div>
-            <div className="user-status">{usuarioLogado?.email || 'admin@admin.com'}</div>
+          <div className="user-info" style={styles.userInfo}>
+            <div className="user-name" style={styles.userName}>
+              {usuarioLogado?.nome || usuarioLogado?.name || 'Administrador'}
+            </div>
+            <div className="user-status" style={styles.userEmail}>
+              {usuarioLogado?.email || 'admin@admin.com'}
+            </div>
           </div>
         </div>
       </aside>
@@ -186,7 +200,6 @@ function App() {
               <span>Vitrine da Loja</span>
             </Link>
             
-            {/* BOTÃO DE LOGOUT REAL */}
             <button 
               onClick={handleLogout} 
               className="icon-btn" 
@@ -206,7 +219,7 @@ function App() {
               <div className="page-header" style={{ marginBottom: '20px' }}>
                 <div>
                   <h2 style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'Montserrat, sans-serif', color: '#0f172a', margin: 0, textTransform: 'uppercase' }}>
-                    OLÁ, {usuarioLogado?.nome ? usuarioLogado.nome.split(' ')[0] : 'ADMINISTRADOR'} 👋
+                    OLÁ, {usuarioLogado?.nome ? usuarioLogado.nome.split(' ')[0] : usuarioLogado?.name ? usuarioLogado.name.split(' ')[0] : 'ADMINISTRADOR'} 👋
                   </h2>
                   <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
                     Acompanhe em tempo real as métricas e clientes do seu e-commerce.
@@ -214,7 +227,6 @@ function App() {
                 </div>
               </div>
 
-              {/* MÉTRICAS */}
               <div style={styles.cardsContainer}>
                 <div style={styles.card}>
                   <div style={styles.cardHeader}>
@@ -267,7 +279,6 @@ function App() {
 
               {erro && <p className="error-message">{erro}</p>}
 
-              {/* TABELA DE CLIENTES */}
               <div style={styles.tableCard}>
                 <h3 style={{ margin: '0 0 15px 0', color: '#0f172a', fontSize: '16px', fontWeight: '800', fontFamily: 'Montserrat, sans-serif', textTransform: 'uppercase' }}>
                   ÚLTIMOS CLIENTES CADASTRADOS
@@ -302,7 +313,7 @@ function App() {
                     <tbody>
                       {clientesFiltrados.map(cliente => (
                         <tr key={cliente.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ ...styles.td, fontWeight: '600', color: '#1e293b' }}>{cliente.nome}</td>
+                          <td style={{ ...styles.td, fontWeight: '600', color: '#1e293b' }}>{cliente.nome || cliente.name}</td>
                           <td style={{ ...styles.td, color: '#475569' }}>{cliente.email}</td>
                           <td style={styles.td}>
                             <span style={styles.roleBadge}>{cliente.role || 'CLIENT'}</span>
@@ -322,6 +333,51 @@ function App() {
 }
 
 const styles = {
+  sidebar: {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    minHeight: '100vh'
+  },
+  sidebarUser: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '16px',
+    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+    marginTop: 'auto'
+  },
+  avatarCircle: {
+    width: '38px',
+    height: '38px',
+    borderRadius: '50%',
+    backgroundColor: '#2563eb',
+    color: '#ffffff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    flexShrink: 0
+  },
+  userInfo: {
+    overflow: 'hidden'
+  },
+  userName: {
+    color: '#ffffff',
+    fontSize: '14px',
+    fontWeight: '600',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  userEmail: {
+    color: '#94a3b8',
+    fontSize: '12px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
   topbar: {
     background: '#ffffff',
     borderBottom: '2px solid #e2e8f0',
@@ -456,3 +512,13 @@ const styles = {
 };
 
 export default App;
+
+// Inicialização direta do React no elemento #root do HTML
+const rootElement = document.getElementById('root');
+if (rootElement && !rootElement._reactRootContainer) {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <AppRoutes />
+    </React.StrictMode>
+  );
+}

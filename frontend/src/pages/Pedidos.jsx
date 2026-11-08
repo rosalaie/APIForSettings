@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaShoppingCart, FaUser } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaTimes, FaShoppingCart, FaUser, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([]);
@@ -9,13 +9,16 @@ export default function Pedidos() {
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [modalClienteAberto, setModalClienteAberto] = useState(false);
-  const [pedidoEditando, setPedidoEditando] = useState(null);
 
-  // Form State - Pedido
+  // ESTADOS DA PAGINAÇÃO
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const itensPorPagina = 20;
+
+  // Form State - Pedido (Apenas os campos originais)
   const [clienteId, setClienteId] = useState('');
-  const [clienteNome, setClienteNome] = useState('');
-  const [origem, setOrigem] = useState('BALCÃO');
-  const [status, setStatus] = useState('Pendente');
+  const [origem, setOrigem] = useState('BALCAO');
+  const [status, setStatus] = useState('PENDENTE');
+  const [observacoes, setObservacoes] = useState('');
   const [itensPedido, setItensPedido] = useState([]);
 
   // Form State - Seleção temporária de produto
@@ -26,36 +29,29 @@ export default function Pedidos() {
   const [novoClienteNome, setNovoClienteNome] = useState('');
   const [novoClienteTelefone, setNovoClienteTelefone] = useState('');
 
-  // Função auxiliar para extrair texto/nome do cliente com segurança
-  const formatarNomeCliente = (clienteData) => {
-    if (!clienteData) return 'Cliente não informado';
-    if (typeof clienteData === 'string') return clienteData;
-    if (typeof clienteData === 'object') {
-      return clienteData.nome || clienteData.name || clienteData.email || 'Cliente não informado';
-    }
-    return String(clienteData);
-  };
-
   const carregarDados = async () => {
     try {
       setLoading(true);
 
-      const resPedidos = await fetch('http://localhost:3000/orders').catch(() => null);
+      const [resPedidos, resClientes, resProdutos] = await Promise.all([
+        fetch('http://localhost:3000/orders').catch(() => null),
+        fetch('http://localhost:3000/clients').catch(() => null),
+        fetch('http://localhost:3000/products').catch(() => null)
+      ]);
+
       if (resPedidos && resPedidos.ok) {
-        const dataPedidos = await resPedidos.json();
-        setPedidos(Array.isArray(dataPedidos) ? dataPedidos : []);
+        const data = await resPedidos.json();
+        setPedidos(Array.isArray(data) ? data : []);
       }
 
-      const resClientes = await fetch('http://localhost:3000/users').catch(() => null);
       if (resClientes && resClientes.ok) {
-        const dataClientes = await resClientes.json();
-        setClientes(Array.isArray(dataClientes) ? dataClientes : dataClientes.users || []);
+        const data = await resClientes.json();
+        setClientes(Array.isArray(data) ? data : []);
       }
 
-      const resProdutos = await fetch('http://localhost:3000/products').catch(() => null);
       if (resProdutos && resProdutos.ok) {
-        const dataProdutos = await resProdutos.json();
-        setProdutos(Array.isArray(dataProdutos) ? dataProdutos : dataProdutos.products || []);
+        const data = await resProdutos.json();
+        setProdutos(Array.isArray(data) ? data : []);
       }
 
     } catch (err) {
@@ -69,15 +65,19 @@ export default function Pedidos() {
     carregarDados();
   }, []);
 
+  // Reseta para a primeira página sempre que o usuário buscar algo
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [busca]);
+
   const limparFormulario = () => {
     setClienteId('');
-    setClienteNome('');
-    setOrigem('BALCÃO');
-    setStatus('Pendente');
+    setOrigem('BALCAO');
+    setStatus('PENDENTE');
+    setObservacoes('');
     setItensPedido([]);
     setProdutoSelecionadoId('');
     setQuantidadeTemp(1);
-    setPedidoEditando(null);
   };
 
   const abrirModalNovo = () => {
@@ -85,72 +85,44 @@ export default function Pedidos() {
     setModalAberto(true);
   };
 
-  const abrirModalEditar = (pedido) => {
-    setPedidoEditando(pedido);
-    
-    if (pedido.clienteId) {
-      setClienteId(pedido.clienteId);
-    } else if (typeof pedido.cliente === 'object' && pedido.cliente?.id) {
-      setClienteId(pedido.cliente.id);
-    } else {
-      setClienteId('');
-    }
-
-    setClienteNome(formatarNomeCliente(pedido.cliente || pedido.clienteNome));
-    setOrigem(pedido.origem || 'BALCÃO');
-    setStatus(pedido.status || 'Pendente');
-    setItensPedido(pedido.itens || pedido.products || []);
-    setModalAberto(true);
-  };
-
-  const handleClienteSelect = (e) => {
-    const id = e.target.value;
-    setClienteId(id);
-    const clienteEncontrado = clientes.find(c => String(c.id) === String(id));
-    if (clienteEncontrado) {
-      setClienteNome(clienteEncontrado.nome || clienteEncontrado.name || '');
-    } else {
-      setClienteNome('');
-    }
-  };
-
   const salvarNovoClienteRapido = async (e) => {
     e.preventDefault();
-    if (!novoClienteNome || !novoClienteTelefone) {
-      alert('Preencha Nome e Telefone do cliente.');
+    if (!novoClienteNome) {
+      alert('Informe o nome do cliente.');
       return;
     }
 
     try {
-      const res = await fetch('http://localhost:3000/users', {
+      const res = await fetch('http://localhost:3000/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: novoClienteNome, telefone: novoClienteTelefone })
+        body: JSON.stringify({ 
+          nome: novoClienteNome.trim(), 
+          telefone: novoClienteTelefone.trim() || null,
+          origem: 'BALCAO'
+        })
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        const clienteCriado = await res.json();
         alert('Cliente cadastrado com sucesso!');
         setNovoClienteNome('');
         setNovoClienteTelefone('');
         setModalClienteAberto(false);
         await carregarDados();
-        
-        if (clienteCriado && clienteCriado.id) {
-          setClienteId(clienteCriado.id);
-          setClienteNome(clienteCriado.nome || novoClienteNome);
-        }
+        if (data.id) setClienteId(String(data.id));
       } else {
-        alert('Erro ao cadastrar cliente.');
+        alert(`Erro (${res.status}): ${data.error || 'Erro ao cadastrar cliente.'}`);
       }
     } catch (err) {
-      alert('Erro de conexão com o servidor.');
+      alert('Erro de conexão ao cadastrar cliente.');
     }
   };
 
   const adicionarProdutoAoPedido = () => {
     if (!produtoSelecionadoId) {
-      alert('Selecione um produto da lista.');
+      alert('Selecione um produto.');
       return;
     }
 
@@ -158,21 +130,21 @@ export default function Pedidos() {
     if (!prod) return;
 
     const qtd = parseInt(quantidadeTemp, 10) || 1;
-    const precoUnitario = parseFloat(prod.preco || prod.price || 0);
+    const precoUnitario = parseFloat(prod.preco || 0);
 
-    const itemExistenteIndex = itensPedido.findIndex(i => String(i.produtoId) === String(prod.id));
+    const indexExistente = itensPedido.findIndex(i => String(i.produtoId) === String(prod.id));
 
-    if (itemExistenteIndex >= 0) {
+    if (indexExistente >= 0) {
       const novosItens = [...itensPedido];
-      novosItens[itemExistenteIndex].quantidade += qtd;
-      novosItens[itemExistenteIndex].subtotal = novosItens[itemExistenteIndex].quantidade * precoUnitario;
+      novosItens[indexExistente].quantidade += qtd;
+      novosItens[indexExistente].subtotal = novosItens[indexExistente].quantidade * precoUnitario;
       setItensPedido(novosItens);
     } else {
       setItensPedido([
         ...itensPedido,
         {
           produtoId: prod.id,
-          nome: prod.nome || prod.name,
+          nome: prod.nome,
           preco: precoUnitario,
           quantidade: qtd,
           subtotal: precoUnitario * qtd
@@ -195,8 +167,8 @@ export default function Pedidos() {
   const salvarPedido = async (e) => {
     e.preventDefault();
 
-    if (!clienteNome) {
-      alert('Por favor, selecione um cliente cadastrado.');
+    if (!clienteId) {
+      alert('Selecione um cliente.');
       return;
     }
 
@@ -206,39 +178,54 @@ export default function Pedidos() {
     }
 
     const payload = {
-      clienteId,
-      cliente: clienteNome,
-      clienteNome,
-      origem,
-      status,
-      itens: itensPedido,
-      total: calcularTotal(),
-      data: new Date().toISOString()
+      clienteId: parseInt(clienteId, 10),
+      origem: origem,
+      status: status,
+      observacoes: observacoes || null,
+      itens: itensPedido.map(item => ({
+        produtoId: parseInt(item.produtoId, 10),
+        quantidade: parseInt(item.quantidade, 10)
+      }))
     };
 
     try {
-      const isEdicao = !!pedidoEditando;
-      const url = isEdicao 
-        ? `http://localhost:3000/orders/${pedidoEditando.id}` 
-        : 'http://localhost:3000/orders';
-      const method = isEdicao ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
+      const res = await fetch('http://localhost:3000/orders', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        alert(isEdicao ? 'Pedido atualizado com sucesso!' : 'Pedido realizado com sucesso!');
+        alert('Pedido registrado com sucesso!');
         setModalAberto(false);
         limparFormulario();
         carregarDados();
       } else {
-        alert('Erro ao salvar o pedido.');
+        alert(`Erro backend (${res.status}): ${data.error || 'Erro ao criar pedido.'}`);
       }
     } catch (err) {
-      alert('Erro de conexão ao salvar pedido.');
+      console.error(err);
+      alert('Erro de conexão com o servidor.');
+    }
+  };
+
+  const atualizarStatusPedido = async (id, novoStatus) => {
+    try {
+      const res = await fetch(`http://localhost:3000/orders/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: novoStatus })
+      });
+
+      if (res.ok) {
+        setPedidos(pedidos.map(p => p.id === id ? { ...p, status: novoStatus } : p));
+      } else {
+        alert('Erro ao atualizar o status do pedido.');
+      }
+    } catch (err) {
+      alert('Erro de conexão ao atualizar status.');
     }
   };
 
@@ -248,17 +235,25 @@ export default function Pedidos() {
       const res = await fetch(`http://localhost:3000/orders/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setPedidos(pedidos.filter(p => p.id !== id));
+      } else {
+        alert('Erro ao excluir pedido.');
       }
     } catch (err) {
-      alert('Erro ao excluir pedido.');
+      alert('Erro de conexão ao excluir.');
     }
   };
 
+  // 1. FILTRAGEM
   const pedidosFiltrados = pedidos.filter(p => {
-    const nomeCli = formatarNomeCliente(p.cliente || p.clienteNome).toLowerCase();
+    const nomeCliente = p.cliente?.nome?.toLowerCase() || '';
     const termo = busca.toLowerCase();
-    return nomeCli.includes(termo) || String(p.id).includes(termo);
+    return nomeCliente.includes(termo) || String(p.id).includes(termo);
   });
+
+  // 2. CÁLCULO DA PAGINAÇÃO (20 por página)
+  const totalPaginas = Math.ceil(pedidosFiltrados.length / itensPorPagina) || 1;
+  const indiceInicial = (paginaAtual - 1) * itensPorPagina;
+  const pedidosPaginados = pedidosFiltrados.slice(indiceInicial, indiceInicial + itensPorPagina);
 
   const inputStyle = {
     width: '100%',
@@ -282,11 +277,12 @@ export default function Pedidos() {
 
   return (
     <div style={{ padding: '10px' }}>
-      {/* CABEÇALHO */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
           <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Gestão de Pedidos</h2>
-          <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>Acompanhe e gerencie as vendas realizadas.</p>
+          <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
+            Acompanhe e gerencie as vendas realizadas ({pedidosFiltrados.length} pedidos).
+          </p>
         </div>
         <button
           onClick={abrirModalNovo}
@@ -296,7 +292,6 @@ export default function Pedidos() {
         </button>
       </div>
 
-      {/* CARD PRINCIPAL */}
       <div style={{ background: '#fff', padding: '24px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
         <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', marginBottom: '20px' }}>
           <FaSearch style={{ color: '#94a3b8', marginRight: '10px' }} />
@@ -312,58 +307,64 @@ export default function Pedidos() {
         {loading ? (
           <p style={{ textAlign: 'center', color: '#64748b', padding: '20px' }}>Carregando pedidos...</p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left' }}>
-                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>CLIENTE</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>ORIGEM</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>STATUS</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>TOTAL</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b', textAlign: 'right' }}>AÇÕES</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pedidosFiltrados.length === 0 ? (
-                <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', color: '#94a3b8', padding: '30px' }}>
-                    Nenhum pedido encontrado.
-                  </td>
+          <>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left' }}>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}># ID</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>CLIENTE</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>ORIGEM</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>STATUS</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>TOTAL</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b', textAlign: 'right' }}>AÇÕES</th>
                 </tr>
-              ) : (
-                pedidosFiltrados.map(p => (
-                  <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: '600', color: '#0f172a' }}>
-                      {formatarNomeCliente(p.cliente || p.clienteNome)}
+              </thead>
+              <tbody>
+                {pedidosPaginados.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', color: '#94a3b8', padding: '30px' }}>
+                      Nenhum pedido encontrado.
                     </td>
-                    <td style={{ padding: '14px 16px', color: '#475569', fontSize: '13px' }}>
-                      <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#f1f5f9', fontSize: '12px', fontWeight: '600' }}>
-                        {p.origem || 'BALCÃO'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', fontSize: '13px' }}>
-                      <span style={{
-                        padding: '4px 10px',
-                        borderRadius: '20px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        background: p.status === 'Concluído' ? '#dcfce7' : '#fef3c7',
-                        color: p.status === 'Concluído' ? '#166534' : '#92400e'
-                      }}>
-                        {p.status || 'Pendente'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', fontWeight: '700', color: '#0f172a' }}>
-                      R$ {parseFloat(p.total || 0).toFixed(2)}
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                        <button
-                          onClick={() => abrirModalEditar(p)}
-                          title="Editar Pedido"
-                          style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer' }}
+                  </tr>
+                ) : (
+                  pedidosPaginados.map(p => (
+                    <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '14px 16px', fontWeight: '700', color: '#64748b' }}>#{p.id}</td>
+                      <td style={{ padding: '14px 16px', fontWeight: '600', color: '#0f172a' }}>
+                        {p.cliente?.nome || 'Cliente Não Identificado'}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#475569', fontSize: '13px' }}>
+                        <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#f1f5f9', fontSize: '12px', fontWeight: '600' }}>
+                          {p.origem || 'BALCAO'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', fontSize: '13px' }}>
+                        <select
+                          value={p.status || 'PENDENTE'}
+                          onChange={(e) => atualizarStatusPedido(p.id, e.target.value)}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            border: '1px solid #cbd5e1',
+                            background: p.status === 'ENTREGUE' || p.status === 'PAGO' ? '#dcfce7' : '#fef3c7',
+                            color: p.status === 'ENTREGUE' || p.status === 'PAGO' ? '#166534' : '#92400e',
+                            cursor: 'pointer'
+                          }}
                         >
-                          <FaEdit />
-                        </button>
+                          <option value="PENDENTE">PENDENTE</option>
+                          <option value="PAGO">PAGO</option>
+                          <option value="EM_PREPARACAO">EM_PREPARACAO</option>
+                          <option value="ENVIADO">ENVIADO</option>
+                          <option value="ENTREGUE">ENTREGUE</option>
+                          <option value="CANCELADO">CANCELADO</option>
+                        </select>
+                      </td>
+                      <td style={{ padding: '14px 16px', fontWeight: '700', color: '#0f172a' }}>
+                        R$ {parseFloat(p.total || 0).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                         <button
                           onClick={() => excluirPedido(p.id)}
                           title="Excluir Pedido"
@@ -371,17 +372,87 @@ export default function Pedidos() {
                         >
                           <FaTrash />
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+
+            {/* CONTROLES DE PAGINAÇÃO */}
+            {pedidosFiltrados.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #f1f5f9' }}>
+                <span style={{ fontSize: '13px', color: '#64748b' }}>
+                  Mostrando <b>{indiceInicial + 1}</b> a <b>{Math.min(indiceInicial + itensPorPagina, pedidosFiltrados.length)}</b> de <b>{pedidosFiltrados.length}</b> pedidos
+                </span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    onClick={() => setPaginaAtual(prev => Math.max(prev - 1, 1))}
+                    disabled={paginaAtual === 1}
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      padding: '6px 12px',
+                      cursor: paginaAtual === 1 ? 'not-allowed' : 'pointer',
+                      opacity: paginaAtual === 1 ? 0.5 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '13px',
+                      color: '#334155'
+                    }}
+                  >
+                    <FaChevronLeft style={{ fontSize: '10px' }} /> Anterior
+                  </button>
+
+                  {Array.from({ length: totalPaginas }, (_, index) => index + 1).map(num => (
+                    <button
+                      key={num}
+                      onClick={() => setPaginaAtual(num)}
+                      style={{
+                        background: paginaAtual === num ? '#2563eb' : '#fff',
+                        color: paginaAtual === num ? '#fff' : '#334155',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        padding: '6px 11px',
+                        fontWeight: paginaAtual === num ? '700' : '400',
+                        cursor: 'pointer',
+                        fontSize: '13px'
+                      }}
+                    >
+                      {num}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas))}
+                    disabled={paginaAtual === totalPaginas}
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      padding: '6px 12px',
+                      cursor: paginaAtual === totalPaginas ? 'not-allowed' : 'pointer',
+                      opacity: paginaAtual === totalPaginas ? 0.5 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '13px',
+                      color: '#334155'
+                    }}
+                  >
+                    Próximo <FaChevronRight style={{ fontSize: '10px' }} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* MODAL CADASTRAR / EDITAR PEDIDO */}
+      {/* MODAL CRIAR PEDIDO */}
       {modalAberto && (
         <div style={{
           position: 'fixed',
@@ -409,104 +480,94 @@ export default function Pedidos() {
             boxSizing: 'border-box',
             margin: 'auto'
           }}>
-            
-            {/* CABEÇALHO DO MODAL */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px' }}>
-              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>
-                {pedidoEditando ? `Editar Pedido #${pedidoEditando.id}` : 'Novo Pedido'}
-              </h3>
+              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>Novo Pedido</h3>
               <FaTimes style={{ cursor: 'pointer', color: '#64748b', fontSize: '18px' }} onClick={() => setModalAberto(false)} />
             </div>
 
-            <form onSubmit={salvarPedido} style={{ display: 'flex', flexDirection: 'column', gap: '16px', boxSizing: 'border-box' }}>
-              
-              {/* DROPDOWN DE SELEÇÃO DE CLIENTE COM BOTÃO "+ NOVO" */}
-              <div style={{ width: '100%', boxSizing: 'border-box' }}>
-                <label style={labelStyle}>
-                  Nome do Cliente <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+            <form onSubmit={salvarPedido} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={labelStyle}>Nome do Cliente *</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
                   <select
                     value={clienteId}
-                    onChange={handleClienteSelect}
+                    onChange={e => setClienteId(e.target.value)}
                     required
-                    style={{ ...inputStyle, flex: 1, minWidth: 0, cursor: 'pointer' }}
+                    style={{ ...inputStyle, flex: 1, cursor: 'pointer' }}
                   >
                     <option value="">-- Selecione o cliente cadastrado --</option>
                     {clientes.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.nome || c.name} {c.telefone ? `(${c.telefone})` : ''}
+                        {c.nome} {c.telefone ? `(${c.telefone})` : ''}
                       </option>
                     ))}
                   </select>
                   <button
                     type="button"
                     onClick={() => setModalClienteAberto(true)}
-                    style={{
-                      background: '#e2e8f0',
-                      color: '#0f172a',
-                      border: '1px solid #cbd5e1',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
+                    style={{ background: '#e2e8f0', color: '#0f172a', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
                     <FaUser style={{ fontSize: '12px' }} /> + Novo
                   </button>
                 </div>
               </div>
 
-              {/* ORIGEM E STATUS */}
-              <div style={{ display: 'flex', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
                   <label style={labelStyle}>Origem</label>
                   <select
                     value={origem}
                     onChange={e => setOrigem(e.target.value)}
                     style={{ ...inputStyle, cursor: 'pointer' }}
                   >
-                    <option value="BALCÃO">BALCÃO</option>
-                    <option value="WHATSAPP">WHATSAPP</option>
-                    <option value="LOJA VIRTUAL">LOJA VIRTUAL</option>
+                    <option value="BALCAO">BALCAO</option>
+                    <option value="SITE">SITE</option>
                   </select>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <label style={labelStyle}>Status</label>
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>Status Inicial</label>
                   <select
                     value={status}
                     onChange={e => setStatus(e.target.value)}
                     style={{ ...inputStyle, cursor: 'pointer' }}
                   >
-                    <option value="Pendente">Pendente</option>
-                    <option value="Em Produção">Em Produção</option>
-                    <option value="Concluído">Concluído</option>
-                    <option value="Cancelado">Cancelado</option>
+                    <option value="PENDENTE">PENDENTE</option>
+                    <option value="PAGO">PAGO</option>
+                    <option value="EM_PREPARACAO">EM_PREPARACAO</option>
+                    <option value="ENVIADO">ENVIADO</option>
+                    <option value="ENTREGUE">ENTREGUE</option>
+                    <option value="CANCELADO">CANCELADO</option>
                   </select>
                 </div>
               </div>
 
+              <div>
+                <label style={labelStyle}>Observações</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Entregar após as 14h, sem cebola..."
+                  value={observacoes}
+                  onChange={e => setObservacoes(e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+
               <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '4px 0' }} />
 
-              {/* SEÇÃO DE ADICIONAR PRODUTOS */}
               <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <FaShoppingCart style={{ color: '#2563eb' }} /> Adicionar Produtos ao Pedido
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <select
                   value={produtoSelecionadoId}
                   onChange={e => setProdutoSelecionadoId(e.target.value)}
-                  style={{ ...inputStyle, flex: 1, minWidth: 0, cursor: 'pointer' }}
+                  style={{ ...inputStyle, flex: 1, cursor: 'pointer' }}
                 >
                   <option value="">-- Selecione um produto --</option>
                   {produtos.map(p => (
                     <option key={p.id} value={p.id}>
-                      {p.nome || p.name} - R$ {parseFloat(p.preco || p.price || 0).toFixed(2)}
+                      {p.nome} - R$ {parseFloat(p.preco || 0).toFixed(2)}
                     </option>
                   ))}
                 </select>
@@ -516,30 +577,19 @@ export default function Pedidos() {
                   min="1"
                   value={quantidadeTemp}
                   onChange={e => setQuantidadeTemp(e.target.value)}
-                  style={{ ...inputStyle, width: '70px', textAlign: 'center', flexShrink: 0 }}
+                  style={{ ...inputStyle, width: '70px', textAlign: 'center' }}
                 />
 
                 <button
                   type="button"
                   onClick={adicionarProdutoAoPedido}
-                  style={{
-                    background: '#16a34a',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0
-                  }}
+                  style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
                 >
                   + Adicionar
                 </button>
               </div>
 
-              {/* TABELA DE ITENS ADICIONADOS */}
-              <div style={{ background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '12px', marginTop: '6px' }}>
+              <div style={{ background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '12px' }}>
                 {itensPedido.length === 0 ? (
                   <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', margin: '8px 0' }}>
                     Nenhum produto adicionado ainda.
@@ -560,13 +610,12 @@ export default function Pedidos() {
                           <td style={{ padding: '8px 0', fontWeight: '600', color: '#0f172a' }}>{item.nome}</td>
                           <td style={{ padding: '8px 0', textAlign: 'center', color: '#475569' }}>{item.quantidade}</td>
                           <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: '600', color: '#0f172a' }}>
-                            R$ {item.subtotal.toFixed(2)}
+                            R$ {(item.subtotal || 0).toFixed(2)}
                           </td>
                           <td style={{ padding: '8px 0', textAlign: 'right' }}>
                             <FaTimes
                               style={{ color: '#ef4444', cursor: 'pointer' }}
                               onClick={() => removerItemPedido(idx)}
-                              title="Remover produto"
                             />
                           </td>
                         </tr>
@@ -583,23 +632,21 @@ export default function Pedidos() {
                 </div>
               </div>
 
-              {/* BOTÕES DE AÇÃO */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
                 <button 
                   type="button" 
                   onClick={() => setModalAberto(false)}
-                  style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '14px' }}
+                  style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit" 
-                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}
+                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
                 >
-                  {pedidoEditando ? 'Atualizar Pedido' : 'Finalizar Pedido'}
+                  Salvar Pedido
                 </button>
               </div>
-
             </form>
           </div>
         </div>
@@ -618,18 +665,9 @@ export default function Pedidos() {
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 10000,
-          padding: '20px',
-          boxSizing: 'border-box'
+          padding: '20px'
         }}>
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '420px',
-            padding: '24px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            boxSizing: 'border-box'
-          }}>
+          <div style={{ background: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '420px', padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h4 style={{ margin: 0, color: '#0f172a', fontSize: '16px', fontWeight: '700' }}>Cadastrar Novo Cliente</h4>
               <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalClienteAberto(false)} />
@@ -649,10 +687,9 @@ export default function Pedidos() {
               </div>
 
               <div>
-                <label style={labelStyle}>Telefone / WhatsApp *</label>
+                <label style={labelStyle}>Telefone / WhatsApp</label>
                 <input
                   type="text"
-                  required
                   placeholder="(42) 99999-9999"
                   value={novoClienteTelefone}
                   onChange={e => setNovoClienteTelefone(e.target.value)}
@@ -679,7 +716,6 @@ export default function Pedidos() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

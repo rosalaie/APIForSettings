@@ -147,12 +147,17 @@ export default function Login() {
             {loading ? 'Entrando...' : 'Entrar no Sistema'}
           </button>
         </form>
+      
 
         <div style={{ marginTop: '20px', textAlign: 'center' }}>
           <Link to="/loja" style={{ fontSize: '13px', color: '#64748b', textDecoration: 'none' }}>
             ← Voltar para a loja
           </Link>
         </div>
+       
+<div style={{ marginTop: '16px', textAlign: 'center', fontSize: '13px', color: '#64748b' }}>
+  Não tem uma conta? <Link to="/register" style={{ color: '#2563eb', fontWeight: '600', textDecoration: 'none' }}>Cadastre-se aqui</Link>
+</div>
       </div>
     </div>
   );

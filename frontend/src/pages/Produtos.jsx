@@ -408,7 +408,7 @@ export default function Produtos() {
           <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '520px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
               <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>
-                {produtoEditando ? `Editar Peça: ${produtoEditando.nome}` : 'Cadastrar Nova Peça'}
+                {produtoEditando ? `Editar Peça: ${produtoEditando.nome}` : 'Cadastrar Produto'}
               </h3>
               <FaTimes style={{ cursor: 'pointer', color: '#64748b', fontSize: '16px' }} onClick={() => setModalAberto(false)} />
             </div>
@@ -534,7 +534,7 @@ export default function Produtos() {
                   style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer', opacity: uploadingImg ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   {uploadingImg && <FaSpinner style={{ animation: 'spin 1s linear infinite' }} />}
-                  {produtoEditando ? 'Atualizar Peça' : 'Salvar Peça'}
+                  {produtoEditando ? 'Atualizar Peça' : 'Confirmar'}
                 </button>
               </div>
             </form>

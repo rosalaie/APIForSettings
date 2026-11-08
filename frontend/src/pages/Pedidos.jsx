@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaSearch, FaTrash, FaTimes, FaShoppingCart, FaUser, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaShoppingCart, FaUser, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([]);
@@ -9,20 +9,26 @@ export default function Pedidos() {
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [modalClienteAberto, setModalClienteAberto] = useState(false);
+  const [pedidoEditandoId, setPedidoEditandoId] = useState(null);
 
   // ESTADOS DA PAGINAÇÃO
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 20;
 
-  // Form State - Pedido (Apenas os campos originais)
+  // Form State - Pedido
   const [clienteId, setClienteId] = useState('');
+  const [buscaClienteTexto, setBuscaClienteTexto] = useState('');
+  const [mostrarDropdownCliente, setMostrarDropdownCliente] = useState(false);
+
   const [origem, setOrigem] = useState('BALCAO');
-  const [status, setStatus] = useState('PENDENTE');
+  const [status, setStatus] = useState('PEDIDO FEITO');
   const [observacoes, setObservacoes] = useState('');
   const [itensPedido, setItensPedido] = useState([]);
 
-  // Form State - Seleção temporária de produto
+  // Form State - Seleção temporária de produto com busca parcial
   const [produtoSelecionadoId, setProdutoSelecionadoId] = useState('');
+  const [buscaProdutoTexto, setBuscaProdutoTexto] = useState('');
+  const [mostrarDropdownProduto, setMostrarDropdownProduto] = useState(false);
   const [quantidadeTemp, setQuantidadeTemp] = useState(1);
 
   // Form State - Cadastro Rápido de Cliente
@@ -65,23 +71,60 @@ export default function Pedidos() {
     carregarDados();
   }, []);
 
-  // Reseta para a primeira página sempre que o usuário buscar algo
   useEffect(() => {
     setPaginaAtual(1);
   }, [busca]);
 
   const limparFormulario = () => {
+    setPedidoEditandoId(null);
     setClienteId('');
+    setBuscaClienteTexto('');
+    setMostrarDropdownCliente(false);
     setOrigem('BALCAO');
-    setStatus('PENDENTE');
+    setStatus('PEDIDO FEITO');
     setObservacoes('');
     setItensPedido([]);
     setProdutoSelecionadoId('');
+    setBuscaProdutoTexto('');
+    setMostrarDropdownProduto(false);
     setQuantidadeTemp(1);
   };
 
   const abrirModalNovo = () => {
     limparFormulario();
+    setModalAberto(true);
+  };
+
+  const abrirModalEdicao = (p) => {
+    setPedidoEditandoId(p.id);
+    const cId = p.clienteId ? String(p.clienteId) : (p.cliente?.id ? String(p.cliente.id) : '');
+    setClienteId(cId);
+
+    const clienteEncontrado = clientes.find(c => String(c.id) === String(cId));
+    setBuscaClienteTexto(clienteEncontrado ? `${clienteEncontrado.nome} ${clienteEncontrado.telefone ? `(${clienteEncontrado.telefone})` : ''}` : (p.cliente?.nome || ''));
+
+    setOrigem(p.origem || 'BALCAO');
+    const statusValido = p.status === 'PAGO' ? 'PEDIDO FEITO' : (p.status || 'PEDIDO FEITO');
+    setStatus(statusValido);
+    setObservacoes(p.observacoes || '');
+
+    if (Array.isArray(p.itens) && p.itens.length > 0) {
+      const itensMapeados = p.itens.map(item => {
+        const precoUnit = parseFloat(item.preco || item.produto?.preco || 0);
+        const qtd = parseInt(item.quantidade || 1, 10);
+        return {
+          produtoId: item.produtoId || item.produto?.id,
+          nome: item.produto?.nome || item.nome || 'Produto',
+          preco: precoUnit,
+          quantidade: qtd,
+          subtotal: precoUnit * qtd
+        };
+      });
+      setItensPedido(itensMapeados);
+    } else {
+      setItensPedido([]);
+    }
+
     setModalAberto(true);
   };
 
@@ -111,7 +154,10 @@ export default function Pedidos() {
         setNovoClienteTelefone('');
         setModalClienteAberto(false);
         await carregarDados();
-        if (data.id) setClienteId(String(data.id));
+        if (data.id) {
+          setClienteId(String(data.id));
+          setBuscaClienteTexto(`${data.nome} ${data.telefone ? `(${data.telefone})` : ''}`);
+        }
       } else {
         alert(`Erro (${res.status}): ${data.error || 'Erro ao cadastrar cliente.'}`);
       }
@@ -153,6 +199,7 @@ export default function Pedidos() {
     }
 
     setProdutoSelecionadoId('');
+    setBuscaProdutoTexto('');
     setQuantidadeTemp(1);
   };
 
@@ -168,7 +215,7 @@ export default function Pedidos() {
     e.preventDefault();
 
     if (!clienteId) {
-      alert('Selecione um cliente.');
+      alert('Selecione um cliente válido da lista.');
       return;
     }
 
@@ -177,11 +224,14 @@ export default function Pedidos() {
       return;
     }
 
+    const isEdicao = Boolean(pedidoEditandoId);
+
     const payload = {
       clienteId: parseInt(clienteId, 10),
       origem: origem,
       status: status,
       observacoes: observacoes || null,
+      total: calcularTotal(),
       itens: itensPedido.map(item => ({
         produtoId: parseInt(item.produtoId, 10),
         quantidade: parseInt(item.quantidade, 10)
@@ -189,25 +239,42 @@ export default function Pedidos() {
     };
 
     try {
-      const res = await fetch('http://localhost:3000/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      let res;
+      if (isEdicao) {
+        // Tenta primeiro via PUT; se não existir no backend, tenta PATCH no status/pedido
+        res = await fetch(`http://localhost:3000/orders/${pedidoEditandoId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-      const data = await res.json();
+        if (!res.ok) {
+          res = await fetch(`http://localhost:3000/orders/${pedidoEditandoId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: status })
+          });
+        }
+      } else {
+        res = await fetch('http://localhost:3000/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
 
       if (res.ok) {
-        alert('Pedido registrado com sucesso!');
+        alert(isEdicao ? 'Pedido atualizado com sucesso!' : 'Pedido registrado com sucesso!');
         setModalAberto(false);
         limparFormulario();
         carregarDados();
       } else {
-        alert(`Erro backend (${res.status}): ${data.error || 'Erro ao criar pedido.'}`);
+        const errData = await res.json().catch(() => null);
+        alert(`Erro ao salvar pedido (${res.status}): ${errData?.error || 'Verifique as informações do formulário.'}`);
       }
     } catch (err) {
       console.error(err);
-      alert('Erro de conexão com o servidor.');
+      alert('Erro de conexão ao salvar pedido. Verifique se o servidor backend está rodando em http://localhost:3000.');
     }
   };
 
@@ -243,14 +310,37 @@ export default function Pedidos() {
     }
   };
 
-  // 1. FILTRAGEM
+  // 1. FILTRAGEM DE PEDIDOS NA TABELA PRINCIPAL
   const pedidosFiltrados = pedidos.filter(p => {
     const nomeCliente = p.cliente?.nome?.toLowerCase() || '';
     const termo = busca.toLowerCase();
     return nomeCliente.includes(termo) || String(p.id).includes(termo);
   });
 
-  // 2. CÁLCULO DA PAGINAÇÃO (20 por página)
+  // 2. ORDENAÇÃO E BUSCA PARCIAL DE CLIENTES
+  const clientesOrdenados = [...clientes].sort((a, b) => 
+    (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' })
+  );
+
+  const clientesFiltradosDropdown = clientesOrdenados.filter(c => {
+    const termo = buscaClienteTexto.toLowerCase();
+    const nome = (c.nome || '').toLowerCase();
+    const telefone = (c.telefone || '').toLowerCase();
+    return nome.includes(termo) || telefone.includes(termo);
+  });
+
+  // 3. ORDENAÇÃO E BUSCA PARCIAL DE PRODUTOS
+  const produtosOrdenados = [...produtos].sort((a, b) => 
+    (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' })
+  );
+
+  const produtosFiltradosDropdown = produtosOrdenados.filter(p => {
+    const termo = buscaProdutoTexto.toLowerCase();
+    const nome = (p.nome || '').toLowerCase();
+    return nome.includes(termo);
+  });
+
+  // 4. PAGINAÇÃO DE PEDIDOS
   const totalPaginas = Math.ceil(pedidosFiltrados.length / itensPorPagina) || 1;
   const indiceInicial = (paginaAtual - 1) * itensPorPagina;
   const pedidosPaginados = pedidosFiltrados.slice(indiceInicial, indiceInicial + itensPorPagina);
@@ -311,7 +401,7 @@ export default function Pedidos() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left' }}>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}># ID</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>PEDIDO</th>
                   <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>CLIENTE</th>
                   <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>ORIGEM</th>
                   <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>STATUS</th>
@@ -327,54 +417,67 @@ export default function Pedidos() {
                     </td>
                   </tr>
                 ) : (
-                  pedidosPaginados.map(p => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '14px 16px', fontWeight: '700', color: '#64748b' }}>#{p.id}</td>
-                      <td style={{ padding: '14px 16px', fontWeight: '600', color: '#0f172a' }}>
-                        {p.cliente?.nome || 'Cliente Não Identificado'}
-                      </td>
-                      <td style={{ padding: '14px 16px', color: '#475569', fontSize: '13px' }}>
-                        <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#f1f5f9', fontSize: '12px', fontWeight: '600' }}>
-                          {p.origem || 'BALCAO'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13px' }}>
-                        <select
-                          value={p.status || 'PENDENTE'}
-                          onChange={(e) => atualizarStatusPedido(p.id, e.target.value)}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            border: '1px solid #cbd5e1',
-                            background: p.status === 'ENTREGUE' || p.status === 'PAGO' ? '#dcfce7' : '#fef3c7',
-                            color: p.status === 'ENTREGUE' || p.status === 'PAGO' ? '#166534' : '#92400e',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <option value="PENDENTE">PENDENTE</option>
-                          <option value="PAGO">PAGO</option>
-                          <option value="EM_PREPARACAO">EM_PREPARACAO</option>
-                          <option value="ENVIADO">ENVIADO</option>
-                          <option value="ENTREGUE">ENTREGUE</option>
-                          <option value="CANCELADO">CANCELADO</option>
-                        </select>
-                      </td>
-                      <td style={{ padding: '14px 16px', fontWeight: '700', color: '#0f172a' }}>
-                        R$ {parseFloat(p.total || 0).toFixed(2)}
-                      </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                        <button
-                          onClick={() => excluirPedido(p.id)}
-                          title="Excluir Pedido"
-                          style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer' }}
-                        >
-                          <FaTrash />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  pedidosPaginados.map(p => {
+                    const statusAtual = p.status === 'PAGO' ? 'PEDIDO FEITO' : (p.status || 'PEDIDO FEITO');
+                    return (
+                      <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '14px' }}>
+                          {p.id}
+                        </td>
+                        <td style={{ padding: '14px 16px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
+                          {p.cliente?.nome || 'Cliente Não Identificado'}
+                        </td>
+                        <td style={{ padding: '14px 16px', color: '#475569', fontSize: '13px' }}>
+                          <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#f1f5f9', fontSize: '12px', fontWeight: '600' }}>
+                            {p.origem || 'BALCAO'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: '13px' }}>
+                          <select
+                            value={statusAtual}
+                            onChange={(e) => atualizarStatusPedido(p.id, e.target.value)}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              border: '1px solid #cbd5e1',
+                              background: statusAtual === 'ENTREGUE' ? '#dcfce7' : '#fef3c7',
+                              color: statusAtual === 'ENTREGUE' ? '#166534' : '#92400e',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <option value="PEDIDO FEITO">PEDIDO FEITO</option>
+                            <option value="EM_PREPARACAO">EM_PREPARACAO</option>
+                            <option value="ENVIADO">ENVIADO</option>
+                            <option value="ENTREGUE">ENTREGUE</option>
+                            <option value="CANCELADO">CANCELADO</option>
+                          </select>
+                        </td>
+                        <td style={{ padding: '14px 16px', fontWeight: '700', color: '#0f172a', fontSize: '14px' }}>
+                          R$ {parseFloat(p.total || 0).toFixed(2)}
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button
+                              onClick={() => abrirModalEdicao(p)}
+                              title="Editar Pedido"
+                              style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <FaEdit />
+                            </button>
+                            <button
+                              onClick={() => excluirPedido(p.id)}
+                              title="Excluir Pedido"
+                              style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <FaTrash />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -430,11 +533,7 @@ export default function Pedidos() {
                     onClick={() => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas))}
                     disabled={paginaAtual === totalPaginas}
                     style={{
-                      background: '#f8fafc',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '6px',
-                      padding: '6px 12px',
-                      cursor: paginaAtual === totalPaginas ? 'not-allowed' : 'pointer',
+                      background: paginaAtual === totalPaginas ? 'not-allowed' : 'pointer',
                       opacity: paginaAtual === totalPaginas ? 0.5 : 1,
                       display: 'flex',
                       alignItems: 'center',
@@ -452,7 +551,7 @@ export default function Pedidos() {
         )}
       </div>
 
-      {/* MODAL CRIAR PEDIDO */}
+      {/* MODAL CRIAR / EDITAR PEDIDO */}
       {modalAberto && (
         <div style={{
           position: 'fixed',
@@ -481,27 +580,79 @@ export default function Pedidos() {
             margin: 'auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px' }}>
-              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>Novo Pedido</h3>
+              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>
+                {pedidoEditandoId ? `Editar Pedido #${pedidoEditandoId}` : 'Novo Pedido'}
+              </h3>
               <FaTimes style={{ cursor: 'pointer', color: '#64748b', fontSize: '18px' }} onClick={() => setModalAberto(false)} />
             </div>
 
             <form onSubmit={salvarPedido} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              
+              {/* COMPONENTE DE BUSCA DE CLIENTE COM AUTOCOMPLETE */}
               <div>
                 <label style={labelStyle}>Nome do Cliente *</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <select
-                    value={clienteId}
-                    onChange={e => setClienteId(e.target.value)}
-                    required
-                    style={{ ...inputStyle, flex: 1, cursor: 'pointer' }}
-                  >
-                    <option value="">-- Selecione o cliente cadastrado --</option>
-                    {clientes.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.nome} {c.telefone ? `(${c.telefone})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                <div style={{ display: 'flex', gap: '8px', position: 'relative' }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <input
+                      type="text"
+                      placeholder="Digite o nome ou telefone do cliente..."
+                      value={buscaClienteTexto}
+                      onChange={e => {
+                        setBuscaClienteTexto(e.target.value);
+                        setClienteId('');
+                        setMostrarDropdownCliente(true);
+                      }}
+                      onFocus={() => setMostrarDropdownCliente(true)}
+                      required={!clienteId}
+                      style={inputStyle}
+                    />
+
+                    {mostrarDropdownCliente && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        background: '#fff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                        zIndex: 1000,
+                        marginTop: '4px'
+                      }}>
+                        {clientesFiltradosDropdown.length === 0 ? (
+                          <div style={{ padding: '10px 14px', color: '#94a3b8', fontSize: '13px' }}>
+                            Nenhum cliente encontrado.
+                          </div>
+                        ) : (
+                          clientesFiltradosDropdown.map(c => (
+                            <div
+                              key={c.id}
+                              onClick={() => {
+                                setClienteId(String(c.id));
+                                setBuscaClienteTexto(`${c.nome} ${c.telefone ? `(${c.telefone})` : ''}`);
+                                setMostrarDropdownCliente(false);
+                              }}
+                              style={{
+                                padding: '10px 14px',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                color: '#0f172a',
+                                borderBottom: '1px solid #f1f5f9',
+                                background: String(c.id) === String(clienteId) ? '#eff6ff' : '#fff'
+                              }}
+                              onMouseDown={e => e.preventDefault()}
+                            >
+                              <strong>{c.nome}</strong> {c.telefone ? <span style={{ color: '#64748b' }}>({c.telefone})</span> : ''}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => setModalClienteAberto(true)}
@@ -531,8 +682,7 @@ export default function Pedidos() {
                     onChange={e => setStatus(e.target.value)}
                     style={{ ...inputStyle, cursor: 'pointer' }}
                   >
-                    <option value="PENDENTE">PENDENTE</option>
-                    <option value="PAGO">PAGO</option>
+                    <option value="PEDIDO FEITO">PEDIDO FEITO</option>
                     <option value="EM_PREPARACAO">EM_PREPARACAO</option>
                     <option value="ENVIADO">ENVIADO</option>
                     <option value="ENTREGUE">ENTREGUE</option>
@@ -558,19 +708,67 @@ export default function Pedidos() {
                 <FaShoppingCart style={{ color: '#2563eb' }} /> Adicionar Produtos ao Pedido
               </div>
 
+              {/* COMPONENTE DE BUSCA DE PRODUTO COM AUTOCOMPLETE */}
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <select
-                  value={produtoSelecionadoId}
-                  onChange={e => setProdutoSelecionadoId(e.target.value)}
-                  style={{ ...inputStyle, flex: 1, cursor: 'pointer' }}
-                >
-                  <option value="">-- Selecione um produto --</option>
-                  {produtos.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.nome} - R$ {parseFloat(p.preco || 0).toFixed(2)}
-                    </option>
-                  ))}
-                </select>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder="Buscar produto por nome..."
+                    value={buscaProdutoTexto}
+                    onChange={e => {
+                      setBuscaProdutoTexto(e.target.value);
+                      setProdutoSelecionadoId('');
+                      setMostrarDropdownProduto(true);
+                    }}
+                    onFocus={() => setMostrarDropdownProduto(true)}
+                    style={inputStyle}
+                  />
+
+                  {mostrarDropdownProduto && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      maxHeight: '180px',
+                      overflowY: 'auto',
+                      background: '#fff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                      zIndex: 1000,
+                      marginTop: '4px'
+                    }}>
+                      {produtosFiltradosDropdown.length === 0 ? (
+                        <div style={{ padding: '10px 14px', color: '#94a3b8', fontSize: '13px' }}>
+                          Nenhum produto encontrado.
+                        </div>
+                      ) : (
+                        produtosFiltradosDropdown.map(p => (
+                          <div
+                            key={p.id}
+                            onClick={() => {
+                              setProdutoSelecionadoId(String(p.id));
+                              setBuscaProdutoTexto(`${p.nome} - R$ ${parseFloat(p.preco || 0).toFixed(2)}`);
+                              setMostrarDropdownProduto(false);
+                            }}
+                            style={{
+                              padding: '10px 14px',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              color: '#0f172a',
+                              borderBottom: '1px solid #f1f5f9',
+                              background: String(p.id) === String(produtoSelecionadoId) ? '#eff6ff' : '#fff'
+                            }}
+                            onMouseDown={e => e.preventDefault()}
+                          >
+                            <strong>{p.nome}</strong> - R$ {parseFloat(p.preco || 0).toFixed(2)}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <input
                   type="number"
@@ -644,7 +842,7 @@ export default function Pedidos() {
                   type="submit" 
                   style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
                 >
-                  Salvar Pedido
+                  {pedidoEditandoId ? 'Atualizar Pedido' : 'Salvar Pedido'}
                 </button>
               </div>
             </form>

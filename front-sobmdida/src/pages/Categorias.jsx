@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash, FaEdit, FaTimes } from 'react-icons/fa';
 
-// Define a URL base da API (puxa da variável VITE_API_URL ou usa o backend online no Render)
 const API_URL = import.meta.env.VITE_API_URL || 'https://sobmdidaadmin.onrender.com';
 
 export default function Categorias() {

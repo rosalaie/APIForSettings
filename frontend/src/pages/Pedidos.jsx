@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaShoppingCart, FaUser, FaChevronLeft, FaChevronRight, FaFilter } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaShoppingCart, FaUser, FaChevronLeft, FaChevronRight, FaFilter, FaQuestionCircle, FaKeyboard } from 'react-icons/fa';
 
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([]);
@@ -11,6 +11,9 @@ export default function Pedidos() {
   const [modalAberto, setModalAberto] = useState(false);
   const [modalClienteAberto, setModalClienteAberto] = useState(false);
   const [pedidoEditandoId, setPedidoEditandoId] = useState(null);
+
+  // ESTADO DO MODAL DE AJUDA (HELPER TECLA H)
+  const [modalAjudaAberto, setModalAjudaAberto] = useState(false);
 
   // ESTADOS DA PAGINAÇÃO
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -35,6 +38,22 @@ export default function Pedidos() {
   // Form State - Cadastro Rápido de Cliente
   const [novoClienteNome, setNovoClienteNome] = useState('');
   const [novoClienteTelefone, setNovoClienteTelefone] = useState('');
+
+  // OUVINTE DE TECLADO PARA O HELPER (TECLA H)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = e.target.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+      if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        setModalAjudaAberto(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const carregarDados = async () => {
     try {
@@ -310,7 +329,7 @@ export default function Pedidos() {
     }
   };
 
-  // 1. FILTRAGEM DE PEDIDOS (POR PADRÃO TRAZ APENAS OS PENDENTES / PEDIDO FEITO)
+  // 1. FILTRAGEM DE PEDIDOS
   const pedidosFiltrados = pedidos.filter(p => {
     const nomeCliente = p.cliente?.nome?.toLowerCase() || '';
     const termo = busca.toLowerCase();
@@ -320,7 +339,6 @@ export default function Pedidos() {
 
     let passaStatus = true;
     if (filtroStatus === 'PENDENTES') {
-      // Exibe apenas pedidos situados como 'PEDIDO FEITO' ou 'PENDENTE'
       passaStatus = stAtual === 'PEDIDO FEITO' || stAtual === 'PENDENTE';
     } else if (filtroStatus !== 'TODOS') {
       passaStatus = stAtual === filtroStatus;
@@ -386,12 +404,24 @@ export default function Pedidos() {
             Acompanhe e gerencie as vendas realizadas ({pedidosFiltrados.length} exibidos).
           </p>
         </div>
-        <button
-          onClick={abrirModalNovo}
-          style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <FaPlus style={{ fontSize: '12px' }} /> Novo Pedido
-        </button>
+
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {/* BOTÃO HELPER DE ATALHO */}
+          <button
+            onClick={() => setModalAjudaAberto(true)}
+            title="Pressione a tecla H para abrir o Guia de Ajuda"
+            style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+          >
+            <FaQuestionCircle style={{ color: '#2563eb' }} /> Ajuda [H]
+          </button>
+
+          <button
+            onClick={abrirModalNovo}
+            style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <FaPlus style={{ fontSize: '12px' }} /> Novo Pedido
+          </button>
+        </div>
       </div>
 
       <div style={{ background: '#fff', padding: '24px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
@@ -454,7 +484,7 @@ export default function Pedidos() {
                     return (
                       <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '14px' }}>
-                          {p.id}
+                          #{p.id}
                         </td>
                         <td style={{ padding: '14px 16px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
                           {p.cliente?.nome || 'Cliente Não Identificado'}
@@ -798,7 +828,7 @@ export default function Pedidos() {
                             }}
                             onMouseDown={e => e.preventDefault()}
                           >
-                            <strong>{p.nome}</strong> - R$ {parseFloat(p.preco || 0).toFixed(2)}
+                            <strong>{p.nome}</strong> - <span style={{ color: '#16a34a', fontWeight: '600' }}>R$ {parseFloat(p.preco || 0).toFixed(2)}</span>
                           </div>
                         ))
                       )}
@@ -817,139 +847,161 @@ export default function Pedidos() {
                 <button
                   type="button"
                   onClick={adicionarProdutoAoPedido}
-                  style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
+                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
                 >
-                  + Adicionar
+                  + Add
                 </button>
               </div>
 
-              <div style={{ background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '12px' }}>
+              {/* LISTA DE ITENS ADICIONADOS */}
+              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', minHeight: '80px' }}>
                 {itensPedido.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', margin: '8px 0' }}>
-                    Nenhum produto adicionado ainda.
-                  </p>
+                  <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', margin: '15px 0' }}>Nenhum item adicionado ao pedido.</p>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#64748b' }}>
-                        <th style={{ paddingBottom: '6px' }}>Produto</th>
-                        <th style={{ paddingBottom: '6px', textAlign: 'center' }}>Qtd</th>
-                        <th style={{ paddingBottom: '6px', textAlign: 'right' }}>Subtotal</th>
-                        <th style={{ paddingBottom: '6px', width: '30px' }}></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {itensPedido.map((item, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '8px 0', fontWeight: '600', color: '#0f172a' }}>{item.nome}</td>
-                          <td style={{ padding: '8px 0', textAlign: 'center', color: '#475569' }}>{item.quantidade}</td>
-                          <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: '600', color: '#0f172a' }}>
-                            R$ {(item.subtotal || 0).toFixed(2)}
-                          </td>
-                          <td style={{ padding: '8px 0', textAlign: 'right' }}>
-                            <FaTimes
-                              style={{ color: '#ef4444', cursor: 'pointer' }}
-                              onClick={() => removerItemPedido(idx)}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {itensPedido.map((item, index) => (
+                      <li key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: index === itensPedido.length - 1 ? 'none' : '1px solid #e2e8f0', fontSize: '13px' }}>
+                        <div>
+                          <strong>{item.nome}</strong> ({item.quantidade}x R$ {parseFloat(item.preco).toFixed(2)})
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontWeight: '700', color: '#16a34a' }}>R$ {parseFloat(item.subtotal).toFixed(2)}</span>
+                          <button
+                            type="button"
+                            onClick={() => removerItemPedido(index)}
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '2px solid #cbd5e1' }}>
-                  <span style={{ fontWeight: '700', color: '#0f172a', fontSize: '15px' }}>Total do Pedido:</span>
-                  <span style={{ fontWeight: '800', color: '#16a34a', fontSize: '18px' }}>
-                    R$ {calcularTotal().toFixed(2)}
-                  </span>
-                </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
-                <button 
-                  type="button" 
-                  onClick={() => setModalAberto(false)}
-                  style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
-                >
-                  {pedidoEditandoId ? 'Salvar Pedido' : 'Salvar Pedido'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CADASTRAR CLIENTE RÁPIDO */}
-      {modalClienteAberto && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(15, 23, 42, 0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          padding: '20px'
-        }}>
-          <div style={{ background: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '420px', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h4 style={{ margin: 0, color: '#0f172a', fontSize: '16px', fontWeight: '700' }}>Cadastrar Novo Cliente</h4>
-              <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalClienteAberto(false)} />
-            </div>
-
-            <form onSubmit={salvarNovoClienteRapido} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={labelStyle}>Nome do Cliente *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Maria Silva"
-                  value={novoClienteNome}
-                  onChange={e => setNovoClienteNome(e.target.value)}
-                  style={inputStyle}
-                />
+              {/* TOTAL DO PEDIDO */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#eff6ff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e40af' }}>Total do Pedido:</span>
+                <span style={{ fontSize: '18px', fontWeight: '800', color: '#1e40af' }}>R$ {calcularTotal().toFixed(2)}</span>
               </div>
 
-              <div>
-                <label style={labelStyle}>Telefone / WhatsApp</label>
-                <input
-                  type="text"
-                  placeholder="(42) 99999-9999"
-                  value={novoClienteTelefone}
-                  onChange={e => setNovoClienteTelefone(e.target.value)}
-                  style={inputStyle}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
                 <button
                   type="button"
-                  onClick={() => setModalClienteAberto(false)}
-                  style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
+                  onClick={() => setModalAberto(false)}
+                  style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 18px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
+                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
                 >
-                  Cadastrar e Selecionar
+                  {pedidoEditandoId ? 'Salvar Alterações' : 'Finalizar Pedido'}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CADASTRO RÁPIDO DE CLIENTE */}
+      {modalClienteAberto && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '380px', padding: '20px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h4 style={{ margin: 0, color: '#0f172a', fontSize: '16px' }}>Novo Cliente Rápido</h4>
+              <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalClienteAberto(false)} />
+            </div>
+
+            <form onSubmit={salvarNovoClienteRapido}>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={labelStyle}>Nome Completo *</label>
+                <input
+                  type="text"
+                  value={novoClienteNome}
+                  onChange={e => setNovoClienteNome(e.target.value)}
+                  placeholder="Ex: João Silva"
+                  required
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={labelStyle}>Telefone / WhatsApp</label>
+                <input
+                  type="text"
+                  value={novoClienteTelefone}
+                  onChange={e => setNovoClienteTelefone(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setModalClienteAberto(false)}
+                  style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Salvar Cliente
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* MODAL HELPER DE ATALHO TECLA H */}
+      {modalAjudaAberto && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div style={{ background: '#fff', borderRadius: '14px', width: '100%', maxWidth: '440px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FaKeyboard style={{ color: '#2563eb', fontSize: '20px' }} />
+                <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>Guia & Atalhos de Pedidos</h3>
+              </div>
+              <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalAjudaAberto(false)} />
+            </div>
+
+            <div style={{ fontSize: '13px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px 12px' }}>
+                <strong style={{ color: '#1e40af' }}>Atalhos Rápidos:</strong>
+                <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px', lineHeight: '1.6' }}>
+                  <li><b>Tecla H:</b> Abre/fecha este menu de ajuda a qualquer momento.</li>
+                </ul>
+              </div>
+
+              <div style={{ lineHeight: '1.6' }}>
+                <strong style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>Regras & Dicas de Vendas:</strong>
+                <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                  <li><b>Filtro de Status:</b> Por padrão, a tela exibe apenas os pedidos situados como <i>PEDIDO FEITO</i> (pendentes de atendimento). Use o filtro no topo para consultar histórico completo.</li>
+                  <li><b>Busca Inteligente:</b> No modal de pedido, digite qualquer parte do nome ou telefone do cliente/produto para selecionar rapidamente.</li>
+                  <li><b>Cliente Rápido:</b> Caso o cliente do balcão ainda não esteja cadastrado, utilize o botão <b>+ Novo</b> ao lado da busca de cliente.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
+              <button
+                onClick={() => setModalAjudaAberto(false)}
+                style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaChevronLeft, FaChevronRight, FaQuestionCircle, FaKeyboard } from 'react-icons/fa';
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([]);
@@ -7,6 +7,9 @@ export default function Clientes() {
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [clienteEditandoId, setClienteEditandoId] = useState(null);
+
+  // ESTADO DO MODAL DE AJUDA (HELPER TECLA H)
+  const [modalAjudaAberto, setModalAjudaAberto] = useState(false);
 
   // ESTADOS DA PAGINAÇÃO
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -29,6 +32,22 @@ export default function Clientes() {
   const [bairro, setBairro] = useState('');
   const [uf, setUf] = useState('');
   const [cidade, setCidade] = useState('');
+
+  // OUVINTE DE TECLADO PARA O HELPER (TECLA H)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = e.target.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+      if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        setModalAjudaAberto(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome')
@@ -256,12 +275,24 @@ export default function Clientes() {
             Gerencie os clientes cadastrados no sistema ({clientesFiltrados.length} cadastrados).
           </p>
         </div>
-        <button 
-          onClick={abrirModalNovo}
-          style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <FaPlus style={{ fontSize: '12px' }} /> Novo Cliente
-        </button>
+
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {/* BOTÃO HELPER DE ATALHO */}
+          <button
+            onClick={() => setModalAjudaAberto(true)}
+            title="Pressione a tecla H para abrir o Guia de Ajuda"
+            style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+          >
+            <FaQuestionCircle style={{ color: '#2563eb' }} /> Ajuda [H]
+          </button>
+
+          <button 
+            onClick={abrirModalNovo}
+            style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <FaPlus style={{ fontSize: '12px' }} /> Novo Cliente
+          </button>
+        </div>
       </div>
 
       <div style={{ background: '#fff', padding: '24px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
@@ -587,6 +618,48 @@ export default function Clientes() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HELPER DE ATALHO TECLA H */}
+      {modalAjudaAberto && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+          <div style={{ background: '#fff', borderRadius: '14px', width: '100%', maxWidth: '440px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FaKeyboard style={{ color: '#2563eb', fontSize: '20px' }} />
+                <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>Guia de Clientes</h3>
+              </div>
+              <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalAjudaAberto(false)} />
+            </div>
+
+            <div style={{ fontSize: '13px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px 12px' }}>
+                <strong style={{ color: '#1e40af' }}>Atalhos Rápidos:</strong>
+                <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px', lineHeight: '1.6' }}>
+                  <li><b>Tecla H:</b> Abre/fecha este menu de ajuda a qualquer momento.</li>
+                </ul>
+              </div>
+
+              <div style={{ lineHeight: '1.6' }}>
+                <strong style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>Regras de Cadastro de Clientes:</strong>
+                <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                  <li><b>Obrigatórios:</b> Nome Completo, CPF, Telefone e Endereço Completo (CEP, Rua, Nº, Bairro, UF, Cidade).</li>
+                  <li><b>Opcionais:</b> E-mail e Complemento do endereço.</li>
+                  <li><b>Consulta CEP:</b> Digite o CEP (8 dígitos) para preenchimento automático da rua, bairro, UF e cidade via ViaCEP.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
+              <button
+                onClick={() => setModalAjudaAberto(false)}
+                style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Entendido
+              </button>
+            </div>
           </div>
         </div>
       )}

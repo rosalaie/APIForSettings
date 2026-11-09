@@ -9,7 +9,6 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [endereco, setEndereco] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
 
@@ -32,13 +31,13 @@ export default function Register() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nome,
-          sobrenome,
-          email,
-          cpf,
-          telefone,
-          endereco,
-          senha
+          nome: nome.trim(),
+          sobrenome: sobrenome.trim(),
+          email: email.trim(),
+          cpf: cpf.trim(),
+          telefone: telefone.trim(),
+          senha,
+          origem: 'SITE'
         })
       });
 
@@ -48,14 +47,9 @@ export default function Register() {
         throw new Error(data.error || data.message || 'Erro ao realizar cadastro.');
       }
 
-      // Salva sessão no localStorage
-      const nomeCompleto = `${nome} ${sobrenome}`.trim();
-      localStorage.setItem('user', JSON.stringify(data.user || { nome: nomeCompleto, email }));
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-      }
+      alert('Conta criada com sucesso! Você já pode navegar e fazer seus pedidos.');
 
-      // Entra direto no sistema (dashboard)
+      // Redireciona o cliente para a vitrine da loja ou login
       navigate('/');
     } catch (error) {
       setErro(error.message);
@@ -87,7 +81,7 @@ export default function Register() {
             SOB<span style={{ color: '#0f172a' }}>MDIDA</span>
           </h1>
           <p style={{ color: '#64748b', fontSize: '14px', marginTop: '6px' }}>
-            Criar minha conta de acesso
+            Criar minha conta de cliente
           </p>
         </div>
 
@@ -127,14 +121,9 @@ export default function Register() {
               <input type="text" required value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" style={inputStyle} />
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Telefone / WhatsApp</label>
-              <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" style={inputStyle} />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Endereço</label>
-              <input type="text" value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua, número, bairro..." style={inputStyle} />
+            <div style={{ gridColumn: 'span 2' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Telefone / WhatsApp *</label>
+              <input type="tel" required value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" style={inputStyle} />
             </div>
 
             <div>

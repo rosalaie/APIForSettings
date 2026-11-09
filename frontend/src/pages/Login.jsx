@@ -1,42 +1,53 @@
-// frontend/src/pages/Login.jsx
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FaLock, FaEnvelope, FaSignInAlt } from 'react-icons/fa';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setErro('');
-    setLoading(true);
+
+    if (!email.trim() || !senha.trim()) {
+      alert('Por favor, preencha o e-mail e a senha.');
+      return;
+    }
 
     try {
+      setLoading(true);
+
       const response = await fetch('http://localhost:3000/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, senha })
+        body: JSON.stringify({ email: email.trim(), senha })
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || 'E-mail ou senha inválidos.');
-      }
+      if (response.ok) {
+        // TRAVA DE SEGURANÇA: Verifica se o utilizador é Administrador
+        if (data.user && data.user.role !== 'ADMIN') {
+          alert('Acesso negado: Este painel é restrito para a administração do sistema. Clientes devem utilizar a vitrine da loja.');
+          return;
+        }
 
-      // Salva os dados do usuário e token no localStorage do navegador
-      localStorage.setItem('user', JSON.stringify(data.user || { nome: 'Administrador', email }));
-      if (data.token) {
+        // Salva os dados de sessão no navegador
         localStorage.setItem('token', data.token);
-      }
+        localStorage.setItem('user', JSON.stringify(data.user));
 
-      // Redireciona para o Painel de Controle (Dashboard)
-      navigate('/');
+        alert(`Bem-vinda de volta, ${data.user.nome || 'Administradora'}!`);
+        
+        // Redireciona para o Painel/Dashboard
+        navigate('/dashboard');
+      } else {
+        alert(data.error || 'Credenciais inválidas. Verifique o e-mail e a senha.');
+      }
     } catch (err) {
-      setErro(err.message);
+      console.error(err);
+      alert('Erro de conexão ao tentar fazer login. Verifique se o backend está rodando.');
     } finally {
       setLoading(false);
     }
@@ -48,84 +59,51 @@ export default function Login() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: '#0f172a',
-      fontFamily: 'sans-serif',
+      background: '#0f172a',
       padding: '20px'
     }}>
       <div style={{
         background: '#ffffff',
-        padding: '40px',
         borderRadius: '16px',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+        padding: '40px',
         width: '100%',
-        maxWidth: '400px'
+        maxWidth: '400px',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
       }}>
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h1 style={{ color: '#d97706', fontSize: '28px', fontWeight: '800', margin: 0 }}>
-            SOB<span style={{ color: '#0f172a' }}>MDIDA</span>
-          </h1>
-          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '6px' }}>
-            Acesse o painel administrativo
-          </p>
+          <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a', margin: 0 }}>SOBMDIDA</h2>
+          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '6px' }}>Painel Administrativo de Gestão</p>
         </div>
 
-        {erro && (
-          <div style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#991b1b',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            marginBottom: '20px'
-          }}>
-            {erro}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-              E-mail
-            </label>
-            <input
-              type="email"
-              required
-              placeholder="admin@admin.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                outline: 'none',
-                fontSize: '14px',
-                boxSizing: 'border-box'
-              }}
-            />
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>E-mail Administrativo</label>
+            <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 14px' }}>
+              <FaEnvelope style={{ color: '#94a3b8', marginRight: '10px' }} />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="michele@sobmedida.com"
+                style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
+              />
+            </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-              Senha
-            </label>
-            <input
-              type="password"
-              required
-              placeholder="••••••••"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                outline: 'none',
-                fontSize: '14px',
-                boxSizing: 'border-box'
-              }}
-            />
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>Senha</label>
+            <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 14px' }}>
+              <FaLock style={{ color: '#94a3b8', marginRight: '10px' }} />
+              <input
+                type="password"
+                required
+                value={senha}
+                onChange={e => setSenha(e.target.value)}
+                placeholder="••••••••"
+                style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
+              />
+            </div>
           </div>
 
           <button
@@ -133,31 +111,23 @@ export default function Login() {
             disabled={loading}
             style={{
               background: '#2563eb',
-              color: '#ffffff',
-              padding: '12px',
+              color: '#fff',
               border: 'none',
+              padding: '12px',
               borderRadius: '8px',
-              fontSize: '14px',
               fontWeight: '700',
-              cursor: 'pointer',
+              fontSize: '15px',
+              cursor: loading ? 'wait' : 'pointer',
               marginTop: '10px',
-              transition: 'background 0.2s'
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}
           >
-            {loading ? 'Entrando...' : 'Entrar no Sistema'}
+            <FaSignInAlt /> {loading ? 'Entrando...' : 'Acessar Sistema'}
           </button>
         </form>
-      
-
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <Link to="/loja" style={{ fontSize: '13px', color: '#64748b', textDecoration: 'none' }}>
-            ← Voltar para a loja
-          </Link>
-        </div>
-       
-<div style={{ marginTop: '16px', textAlign: 'center', fontSize: '13px', color: '#64748b' }}>
-  Não tem uma conta? <Link to="/register" style={{ color: '#2563eb', fontWeight: '600', textDecoration: 'none' }}>Cadastre-se aqui</Link>
-</div>
       </div>
     </div>
   );

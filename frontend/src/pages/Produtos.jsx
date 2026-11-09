@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaCloudUploadAlt, FaSpinner, FaChevronLeft, FaChevronRight, FaQuestionCircle, FaKeyboard } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaCloudUploadAlt, FaSpinner, FaChevronLeft, FaChevronRight, FaQuestionCircle, FaKeyboard, FaFilter } from 'react-icons/fa';
 
 export default function Produtos() {
   const [produtos, setProdutos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [busca, setBusca] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('TODOS');
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState(null);
@@ -20,6 +21,7 @@ export default function Produtos() {
   const [nome, setNome] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
   const [preco, setPreco] = useState('');
+  const [status, setStatus] = useState('ATIVO');
   const [descricao, setDescricao] = useState('');
   const [imagemArquivo, setImagemArquivo] = useState(null);
   const [imagemUrl, setImagemUrl] = useState('');
@@ -35,7 +37,6 @@ export default function Produtos() {
   // OUVINTE DE TECLADO PARA O HELPER (TECLA H)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ignora a tecla 'h' caso o usuário esteja digitando em um input/textarea
       const tag = e.target.tagName.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
@@ -74,16 +75,16 @@ export default function Produtos() {
     try {
       setLoading(true);
       const [resProd, resCat] = await Promise.all([
-        fetch('http://localhost:3000/products'),
-        fetch('http://localhost:3000/categories')
+        fetch('http://localhost:3000/products').catch(() => null),
+        fetch('http://localhost:3000/categories').catch(() => null)
       ]);
 
-      if (resProd.ok) {
+      if (resProd && resProd.ok) {
         const dataP = await resProd.json();
         setProdutos(Array.isArray(dataP) ? dataP : []);
       }
 
-      if (resCat.ok) {
+      if (resCat && resCat.ok) {
         const dataC = await resCat.json();
         setCategorias(Array.isArray(dataC) ? dataC : []);
       }
@@ -100,12 +101,13 @@ export default function Produtos() {
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [busca]);
+  }, [busca, filtroStatus]);
 
   const limparFormulario = () => {
     setNome('');
     setCategoriaId('');
     setPreco('');
+    setStatus('ATIVO');
     setDescricao('');
     setImagemArquivo(null);
     setImagemUrl('');
@@ -124,6 +126,11 @@ export default function Produtos() {
     setNome(prod.nome || '');
     setCategoriaId(prod.categoriaId || prod.categoria?.id || '');
     setPreco(prod.preco || '');
+    
+    // Trata status booleano ou string
+    const statusVal = prod.status || (prod.ativo === false ? 'INATIVO' : 'ATIVO');
+    setStatus(statusVal);
+
     setDescricao(prod.descricao || '');
     
     const urlExistente = prod.imagemUrl || prod.imagem || prod.foto || '';
@@ -190,7 +197,6 @@ export default function Produtos() {
     const isEdicao = !!produtoEditando;
     const jaExiste = produtos.some(p => {
       const mesmoNome = p.nome?.trim().toLowerCase() === nomeFormatado.toLowerCase();
-      // Se for edição, ignora o próprio produto atual
       if (isEdicao) {
         return mesmoNome && String(p.id) !== String(produtoEditando.id);
       }
@@ -225,6 +231,8 @@ export default function Produtos() {
         preco: valorPreco,
         categoriaId: parseInt(categoriaId, 10),
         estoque: 0,
+        status: isEdicao ? status : 'ATIVO',
+        ativo: isEdicao ? status === 'ATIVO' : true,
         imagemUrl: urlImagemFinal || undefined
       };
 
@@ -260,22 +268,30 @@ export default function Produtos() {
       if (res.ok) {
         setProdutos(produtos.filter(p => p.id !== id));
       } else {
-        alert('Erro ao excluir produto. O produto pode estar associado a pedidos existentes.');
+        alert('Este produto não pode ser excluído diretamente pois está associado a pedidos já realizados. Altere o status dele para INATIVO na edição!');
       }
     } catch (err) {
       alert('Erro de conexão ao excluir produto.');
     }
   };
 
-  // 1. FILTRAGEM
+  // 1. FILTRAGEM DE PRODUTOS
   const produtosFiltrados = produtos.filter(p => {
     const termo = busca.toLowerCase();
     const nomeP = String(p.nome || '').toLowerCase();
     const catP = String(p.categoria?.nome || '').toLowerCase();
-    return nomeP.includes(termo) || catP.includes(termo);
+    const passaTexto = nomeP.includes(termo) || catP.includes(termo);
+
+    const stAtual = p.status || (p.ativo === false ? 'INATIVO' : 'ATIVO');
+    let passaStatus = true;
+    if (filtroStatus !== 'TODOS') {
+      passaStatus = stAtual === filtroStatus;
+    }
+
+    return passaTexto && passaStatus;
   });
 
-  // 2. CÁLCULO DA PAGINAÇÃO (20 por página)
+  // 2. CÁLCULO DA PAGINAÇÃO
   const totalPaginas = Math.ceil(produtosFiltrados.length / itensPorPagina) || 1;
   const indiceInicial = (paginaAtual - 1) * itensPorPagina;
   const produtosPaginados = produtosFiltrados.slice(indiceInicial, indiceInicial + itensPorPagina);
@@ -286,12 +302,11 @@ export default function Produtos() {
         <div>
           <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Catálogo de Produtos</h2>
           <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
-            Gerencie as peças e produtos disponíveis na loja ({produtosFiltrados.length} itens cadastrados).
+            Gerencie as peças e produtos disponíveis na loja ({produtosFiltrados.length} exibidos).
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {/* BOTÃO HELPER DE ATALHO */}
           <button
             onClick={() => setModalAjudaAberto(true)}
             title="Pressione a tecla H para abrir o Guia de Ajuda"
@@ -310,15 +325,32 @@ export default function Produtos() {
       </div>
 
       <div style={{ background: '#fff', padding: '24px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', marginBottom: '20px' }}>
-          <FaSearch style={{ color: '#94a3b8', marginRight: '10px' }} />
-          <input
-            type="text"
-            placeholder="Buscar por peça ou categoria..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
-          />
+        
+        {/* BARRA DE BUSCA E FILTRO DE STATUS */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 2, minWidth: '240px', display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px' }}>
+            <FaSearch style={{ color: '#94a3b8', marginRight: '10px' }} />
+            <input
+              type="text"
+              placeholder="Buscar por peça ou categoria..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
+            />
+          </div>
+
+          <div style={{ flex: 1, minWidth: '180px', display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '0 14px', borderRadius: '8px' }}>
+            <FaFilter style={{ color: '#94a3b8', marginRight: '8px', fontSize: '12px' }} />
+            <select
+              value={filtroStatus}
+              onChange={(e) => setFiltroStatus(e.target.value)}
+              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '13px', fontWeight: '600', color: '#334155', cursor: 'pointer', padding: '10px 0' }}
+            >
+              <option value="TODOS">Todos os Status</option>
+              <option value="ATIVO">Apenas Ativos</option>
+              <option value="INATIVO">Apenas Inativos</option>
+            </select>
+          </div>
         </div>
 
         {loading ? (
@@ -329,6 +361,7 @@ export default function Produtos() {
               <thead>
                 <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left' }}>
                   <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>NOME / CATEGORIA</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>STATUS</th>
                   <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>PREÇO</th>
                   <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b', textAlign: 'right' }}>AÇÕES</th>
                 </tr>
@@ -336,42 +369,62 @@ export default function Produtos() {
               <tbody>
                 {produtosPaginados.length === 0 ? (
                   <tr>
-                    <td colSpan="3" style={{ textAlign: 'center', color: '#94a3b8', padding: '30px' }}>
+                    <td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8', padding: '30px' }}>
                       Nenhum produto encontrado.
                     </td>
                   </tr>
                 ) : (
-                  produtosPaginados.map(p => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '14px 16px' }}>
-                        <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
-                          {p.nome}
-                        </div>
-                        <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>
-                          Categoria: {p.categoria?.nome || 'Geral'}
-                        </div>
-                      </td>
-                      <td style={{ padding: '14px 16px', fontWeight: '700', color: '#16a34a' }}>
-                        R$ {Number(p.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                          <button
-                            onClick={() => abrirModalEditar(p)}
-                            style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer' }}
-                          >
-                            <FaEdit />
-                          </button>
-                          <button
-                            onClick={() => excluirProduto(p.id)}
-                            style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer' }}
-                          >
-                            <FaTrash />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  produtosPaginados.map(p => {
+                    const st = p.status || (p.ativo === false ? 'INATIVO' : 'ATIVO');
+                    const isAtivo = st === 'ATIVO';
+
+                    return (
+                      <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', opacity: isAtivo ? 1 : 0.65 }}>
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
+                            {p.nome}
+                          </div>
+                          <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>
+                            Categoria: {p.categoria?.nome || 'Geral'}
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span style={{
+                            padding: '4px 10px',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            background: isAtivo ? '#dcfce7' : '#f1f5f9',
+                            color: isAtivo ? '#15803d' : '#64748b',
+                            border: `1px solid ${isAtivo ? '#bbf7d0' : '#cbd5e1'}`
+                          }}>
+                            {isAtivo ? 'ATIVO' : 'INATIVO'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px', fontWeight: '700', color: '#16a34a' }}>
+                          R$ {Number(p.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button
+                              onClick={() => abrirModalEditar(p)}
+                              title="Editar / Alterar Status"
+                              style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer' }}
+                            >
+                              <FaEdit />
+                            </button>
+                            <button
+                              onClick={() => excluirProduto(p.id)}
+                              title="Excluir Produto"
+                              style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer' }}
+                            >
+                              <FaTrash />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -473,7 +526,7 @@ export default function Produtos() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: produtoEditando ? '1fr 1fr 1fr' : '1fr 1fr', gap: '12px' }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                     <label style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>Categoria *</label>
@@ -482,7 +535,7 @@ export default function Produtos() {
                       onClick={() => setModalCategoriaAberto(true)}
                       style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '11px', fontWeight: '700', cursor: 'pointer', padding: 0 }}
                     >
-                      + Nova Categoria
+                      + Nova
                     </button>
                   </div>
 
@@ -512,6 +565,21 @@ export default function Produtos() {
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box', fontSize: '14px' }} 
                   />
                 </div>
+
+                {/* CAMPO STATUS (EXIBIDO APENAS NA EDIÇÃO) */}
+                {produtoEditando && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>Status *</label>
+                    <select
+                      value={status}
+                      onChange={e => setStatus(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', background: '#fff', boxSizing: 'border-box', fontWeight: '700', color: status === 'ATIVO' ? '#16a34a' : '#64748b' }}
+                    >
+                      <option value="ATIVO">ATIVO</option>
+                      <option value="INATIVO">INATIVO</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* CARREGAMENTO DE IMAGEM */}
@@ -581,7 +649,7 @@ export default function Produtos() {
                   style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer', opacity: uploadingImg ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   {uploadingImg && <FaSpinner style={{ animation: 'spin 1s linear infinite' }} />}
-                  {produtoEditando ? 'Salvar' : 'Confirmar'}
+                  {produtoEditando ? 'Salvar Alterações' : 'Confirmar'}
                 </button>
               </div>
             </form>
@@ -648,7 +716,6 @@ export default function Produtos() {
                 <strong style={{ color: '#1e40af' }}>Atalhos Rápidos:</strong>
                 <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px', lineHeight: '1.6' }}>
                   <li><b>Tecla H:</b> Abre/fecha este menu de ajuda a qualquer momento.</li>
-                  <li><b>Esc:</b> Fecha os modais abertos.</li>
                 </ul>
               </div>
 
@@ -656,8 +723,7 @@ export default function Produtos() {
                 <strong style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>Regras do Catálogo de Produtos:</strong>
                 <ul style={{ margin: 0, paddingLeft: '20px' }}>
                   <li><b>Duplicidade:</b> Não é permitido cadastrar dois produtos com o mesmo nome.</li>
-                  <li><b>Imagens:</b> Você pode fazer upload de um arquivo direto do computador (via ImgBB) ou colar o link de uma imagem online.</li>
-                  <li><b>Exclusão:</b> Não é possível excluir um produto se ele estiver sendo utilizado em um pedido realizado.</li>
+                  <li><b>Inativação (Status):</b> Produtos vinculados a pedidos existentes não podem ser excluídos do banco de dados, mas podem ter seu status alterado para <b>INATIVO</b>.</li>
                 </ul>
               </div>
             </div>

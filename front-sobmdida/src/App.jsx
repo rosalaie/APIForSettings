@@ -6,7 +6,8 @@ import Produto from './pages/Produto';
 import CadastrarProduto from './pages/CadastrarProduto';
 import LoginAdmin from './pages/LoginAdmin';
 import LoginCliente from './pages/LoginCliente';
-import Checkout from './pages/Checkout'; // Importação da tela de pagamento
+import Checkout from './pages/Checkout'; 
+import Contato from './pages/Contato'; // Importação da nova página
 import './App.css';
 
 function App() {
@@ -20,7 +21,8 @@ function App() {
         <Route path="/produto/:id" element={<Produto />} /> 
         <Route path="/admin" element={<LoginAdmin />} />
         <Route path="/admin/novo-produto" element={<CadastrarProduto />} />
-        <Route path="/checkout" element={<Checkout />} /> {/* Nova Rota */}
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/contato" element={<Contato />} /> {/* Nova Rota de Contato */}
       </Routes>
     </BrowserRouter>
   );

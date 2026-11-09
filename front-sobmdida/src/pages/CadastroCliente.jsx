@@ -5,16 +5,16 @@ function CadastroCliente() {
   return (
     <div style={{ backgroundColor: '#f9fafb', minHeight: '100vh', fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif' }}>
       
-      {/* Cabeçalho de Navegação */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', backgroundColor: '#fff', borderBottom: '1px solid #eaeaea' }}>
+      {/* Cabeçalho Padronizado */}
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', backgroundColor: '#0f172a', borderBottom: '4px solid #e11d48' }}>
         <Link to="/" style={{ textDecoration: 'none' }}>
-          <h1 style={{ color: '#000', margin: 0, fontSize: '24px', fontWeight: '900', letterSpacing: '-1px' }}>SOBMDIDA</h1>
+          <h1 style={{ color: '#e11d48', margin: 0, fontSize: '26px', fontWeight: '900', letterSpacing: '-1px' }}>SOBMDIDA</h1>
         </Link>
-        <nav style={{ display: 'flex', gap: '25px', fontWeight: '500', color: '#555', fontSize: '14px' }}>
-          <Link to="/" style={{ color: '#555', textDecoration: 'none' }}>Nosso Catálogo</Link>
-          <Link to="/carrinho" style={{ color: '#555', textDecoration: 'none' }}>Seus Pedidos</Link>
-          <Link to="/admin" style={{ color: '#555', textDecoration: 'none' }}>Área Admin</Link>
-          <span style={{ cursor: 'pointer', fontWeight: 'bold', color: '#000' }}>Sua Conta</span>
+        <nav style={{ display: 'flex', gap: '25px', fontWeight: '600', fontSize: '15px' }}>
+          <Link to="/" style={{ color: '#fff', textDecoration: 'none' }}>Catálogo De Itens</Link>
+          <Link to="/carrinho" style={{ color: '#fff', textDecoration: 'none' }}>Seu Pedido</Link>
+          <Link to="/contato" style={{ color: '#fff', textDecoration: 'none' }}>Nosso Contato</Link>
+          <Link to="/login" style={{ color: '#fff', textDecoration: 'none' }}>Sua Conta</Link>
         </nav>
       </header>
 
@@ -25,27 +25,25 @@ function CadastroCliente() {
           <form style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
             
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Nome</label>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Nome</label>
               <input type="text" style={{ padding: '10px 15px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }} />
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Sobrenome</label>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Sobrenome</label>
               <input type="text" style={{ padding: '10px 15px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }} />
             </div>
 
-            {/* Campo CPF com Helper Tooltip (Hover) */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 CPF
                 <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="Digite apenas números, sem pontos ou traços." />
               </label>
               <input type="text" style={{ padding: '10px 15px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }} />
             </div>
 
-            {/* Campo Endereço com Helper Tooltip (Hover) */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 Endereço
                 <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="Informe rua, número, bairro e CEP." />
               </label>
@@ -53,13 +51,12 @@ function CadastroCliente() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Login</label>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Login</label>
               <input type="email" style={{ padding: '10px 15px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }} />
             </div>
 
-            {/* Campo Senha com Helper Tooltip (Hover) */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 Senha
                 <FaInfoCircle style={{ color: '#64748b', cursor: 'help' }} title="A senha deve conter no mínimo 8 caracteres." />
               </label>
@@ -67,21 +64,19 @@ function CadastroCliente() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>Confirmar Senha</label>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' }}>Confirmar Senha</label>
               <input type="password" style={{ padding: '10px 15px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' }} />
             </div>
 
-            {/* Checkbox */}
             <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '10px' }}>
               <input type="checkbox" id="ofertas" style={{ marginTop: '3px', cursor: 'pointer' }} />
               <label htmlFor="ofertas" style={{ fontSize: '13px', color: '#555', cursor: 'pointer' }}>
-                Quero receber alertas de ofertas<br/>do SOBMDIDA pelo meu email.
+                Quero receber alertas de ofertas do SOBMDIDA pelo meu email.
               </label>
             </div>
 
-            {/* Botão de Envio */}
             <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
-              <button type="button" style={{ backgroundColor: '#d1d5db', color: '#000', border: 'none', padding: '12px 35px', borderRadius: '25px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}>
+              <button type="button" style={{ backgroundColor: '#e11d48', color: '#fff', border: 'none', padding: '12px 35px', borderRadius: '25px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}>
                 Criar minha conta
               </button>
             </div>

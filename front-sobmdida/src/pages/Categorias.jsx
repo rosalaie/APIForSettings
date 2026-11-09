@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash, FaEdit, FaTimes } from 'react-icons/fa';
 
+// Define a URL base da API (puxa da variável VITE_API_URL ou usa o backend online no Render)
+const API_URL = import.meta.env.VITE_API_URL || 'https://sobmdidaadmin.onrender.com';
+
 export default function Categorias() {
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,7 +16,7 @@ export default function Categorias() {
   const carregarCategorias = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3000/categories');
+      const res = await fetch(`${API_URL}/categories`);
       if (res.ok) {
         const data = await res.json();
         setCategorias(data);
@@ -49,14 +52,14 @@ export default function Categorias() {
 
     try {
       if (categoriaEditando) {
-        const res = await fetch(`http://localhost:3000/categories/${categoriaEditando.id}`, {
+        const res = await fetch(`${API_URL}/categories/${categoriaEditando.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         if (res.ok) alert('Categoria atualizada com sucesso!');
       } else {
-        const res = await fetch('http://localhost:3000/categories', {
+        const res = await fetch(`${API_URL}/categories`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -73,7 +76,7 @@ export default function Categorias() {
   const excluirCategoria = async (id) => {
     if (!window.confirm('Tem certeza que deseja excluir esta categoria?')) return;
     try {
-      const res = await fetch(`http://localhost:3000/categories/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/categories/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setCategorias(categorias.filter(c => c.id !== id));
       }

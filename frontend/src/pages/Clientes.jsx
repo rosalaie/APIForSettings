@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaChevronLeft, FaChevronRight, FaQuestionCircle, FaKeyboard } from 'react-icons/fa';
 
+// Define a URL base da API (VITE_API_URL ou fallback para o backend do Render)
+const API_URL = import.meta.env.VITE_API_URL || 'https://sobmdidaadmin.onrender.com';
+
 export default function Clientes() {
   const [clientes, setClientes] = useState([]);
   const [busca, setBusca] = useState('');
@@ -96,7 +99,7 @@ export default function Clientes() {
   const carregarClientes = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3000/clients');
+      const res = await fetch(`${API_URL}/clients`);
       if (res.ok) {
         const data = await res.json();
         const listaClientes = Array.isArray(data) 
@@ -205,21 +208,21 @@ export default function Clientes() {
       let res;
 
       if (isEdicao) {
-        res = await fetch(`http://localhost:3000/clients/${clienteEditandoId}`, {
+        res = await fetch(`${API_URL}/clients/${clienteEditandoId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         }).catch(() => null);
 
         if (!res || !res.ok) {
-          res = await fetch(`http://localhost:3000/users/${clienteEditandoId}`, {
+          res = await fetch(`${API_URL}/users/${clienteEditandoId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           }).catch(() => null);
         }
       } else {
-        res = await fetch('http://localhost:3000/register', {
+        res = await fetch(`${API_URL}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -243,7 +246,7 @@ export default function Clientes() {
   const excluirCliente = async (id) => {
     if (!window.confirm('Tem certeza que deseja excluir este cliente?')) return;
     try {
-      const res = await fetch(`http://localhost:3000/clients/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/clients/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setClientes(clientes.filter(c => c.id !== id));
       } else {
@@ -614,7 +617,7 @@ export default function Clientes() {
                   type="submit" 
                   style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
                 >
-                  {clienteEditandoId ? 'Salvar Cliente' : 'Salvar Cliente'}
+                  {clienteEditandoId ? 'Salvar Alterações' : 'Salvar Cliente'}
                 </button>
               </div>
             </form>

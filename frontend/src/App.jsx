@@ -1,11 +1,11 @@
 import './App.css';
 import React, { useEffect, useState } from 'react';
-import ReactDOM from 'react-dom/client';
 import AppRoutes from './routes/AppRoutes.jsx';
-import Login from './pages/Login.jsx';
-import Register from './pages/Register.jsx';
 import { FaStore, FaUsers, FaBoxOpen, FaTags, FaChartBar, FaDollarSign, FaShoppingBag, FaSearch, FaTachometerAlt } from "react-icons/fa";
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+
+// Define a URL base da API (VITE_API_URL ou fallback para o backend do Render)
+const API_URL = import.meta.env.VITE_API_URL || 'https://sobmdidaadmin.onrender.com';
 
 function App() {
   const [clientes, setClientes] = useState([]);
@@ -61,19 +61,19 @@ function App() {
     try {
       setLoading(true);
       const [resUsers, resPedidos, resProdutos] = await Promise.all([
-        fetch('http://localhost:3000/users').catch(() => null),
-        fetch('http://localhost:3000/orders').catch(() => null),
-        fetch('http://localhost:3000/products').catch(() => null)
+        fetch(`${API_URL}/users`).catch(() => null),
+        fetch(`${API_URL}/orders`).catch(() => null),
+        fetch(`${API_URL}/products`).catch(() => null)
       ]);
 
       if (resUsers && resUsers.ok) {
-  const usersData = await resUsers.json();
-  // FILTRO: Garante que o Dashboard só considere clientes do balcão/loja
-  const apenasClientes = Array.isArray(usersData) 
-    ? usersData.filter(u => u.origem === 'BALCAO' || u.role === 'CLIENT' || u.email?.includes('balcao_'))
-    : [];
-  setClientes(apenasClientes);
-}
+        const usersData = await resUsers.json();
+        // FILTRO: Garante que o Dashboard só considere clientes do balcão/loja
+        const apenasClientes = Array.isArray(usersData) 
+          ? usersData.filter(u => u.origem === 'BALCAO' || u.role === 'CLIENT' || u.email?.includes('balcao_'))
+          : [];
+        setClientes(apenasClientes);
+      }
       
       if (resPedidos && resPedidos.ok) {
         const pedidosData = await resPedidos.json();
@@ -512,13 +512,3 @@ const styles = {
 };
 
 export default App;
-
-// Inicialização direta do React no elemento #root do HTML
-const rootElement = document.getElementById('root');
-if (rootElement && !rootElement._reactRootContainer) {
-  ReactDOM.createRoot(rootElement).render(
-    <React.StrictMode>
-      <AppRoutes />
-    </React.StrictMode>
-  );
-}

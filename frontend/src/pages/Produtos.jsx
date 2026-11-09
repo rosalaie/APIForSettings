@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaCloudUploadAlt, FaSpinner, FaChevronLeft, FaChevronRight, FaQuestionCircle, FaKeyboard, FaFilter } from 'react-icons/fa';
 
+// Define a URL base da API (VITE_API_URL ou fallback para o backend do Render)
+const API_URL = import.meta.env.VITE_API_URL || 'https://sobmdidaadmin.onrender.com';
+
 export default function Produtos() {
   const [produtos, setProdutos] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -75,8 +78,8 @@ export default function Produtos() {
     try {
       setLoading(true);
       const [resProd, resCat] = await Promise.all([
-        fetch('http://localhost:3000/products').catch(() => null),
-        fetch('http://localhost:3000/categories').catch(() => null)
+        fetch(`${API_URL}/products`).catch(() => null),
+        fetch(`${API_URL}/categories`).catch(() => null)
       ]);
 
       if (resProd && resProd.ok) {
@@ -153,7 +156,7 @@ export default function Produtos() {
     if (!novaCategoriaNome.trim()) return;
 
     try {
-      const res = await fetch('http://localhost:3000/categories', {
+      const res = await fetch(`${API_URL}/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome: novaCategoriaNome })
@@ -221,8 +224,8 @@ export default function Produtos() {
       }
 
       const url = isEdicao 
-        ? `http://localhost:3000/products/${produtoEditando.id}` 
-        : 'http://localhost:3000/products';
+        ? `${API_URL}/products/${produtoEditando.id}` 
+        : `${API_URL}/products`;
       const method = isEdicao ? 'PUT' : 'POST';
 
       const payload = {
@@ -264,7 +267,7 @@ export default function Produtos() {
   const excluirProduto = async (id) => {
     if (!window.confirm('Tem certeza que deseja excluir este produto?')) return;
     try {
-      const res = await fetch(`http://localhost:3000/products/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/products/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setProdutos(produtos.filter(p => p.id !== id));
       } else {
@@ -706,7 +709,7 @@ export default function Produtos() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <FaKeyboard style={{ color: '#2563eb', fontSize: '20px' }} />
-                <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>Guia & Atalhos do Sistema</h3>
+                <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>Guia de Produtos</h3>
               </div>
               <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalAjudaAberto(false)} />
             </div>
@@ -720,10 +723,11 @@ export default function Produtos() {
               </div>
 
               <div style={{ lineHeight: '1.6' }}>
-                <strong style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>Regras do Catálogo de Produtos:</strong>
+                <strong style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>Regras do Catálogo:</strong>
                 <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                  <li><b>Duplicidade:</b> Não é permitido cadastrar dois produtos com o mesmo nome.</li>
-                  <li><b>Inativação (Status):</b> Produtos vinculados a pedidos existentes não podem ser excluídos do banco de dados, mas podem ter seu status alterado para <b>INATIVO</b>.</li>
+                  <li><b>Imagens:</b> Faça upload direto do computador (vai para o ImgBB) ou insira uma URL direta.</li>
+                  <li><b>Status:</b> Produtos vinculados a pedidos não podem ser excluídos; altere o status para INATIVO na edição.</li>
+                  <li><b>Nomes Únicos:</b> O sistema bloqueia nomes duplicados para evitar erros no catálogo.</li>
                 </ul>
               </div>
             </div>

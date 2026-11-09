@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaShoppingCart, FaUser, FaChevronLeft, FaChevronRight, FaFilter, FaQuestionCircle, FaKeyboard } from 'react-icons/fa';
 
+// Define a URL base da API (VITE_API_URL ou fallback para o backend do Render)
+const API_URL = import.meta.env.VITE_API_URL || 'https://sobmdidaadmin.onrender.com';
+
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([]);
   const [clientes, setClientes] = useState([]);
@@ -60,9 +63,9 @@ export default function Pedidos() {
       setLoading(true);
 
       const [resPedidos, resClientes, resProdutos] = await Promise.all([
-        fetch('http://localhost:3000/orders').catch(() => null),
-        fetch('http://localhost:3000/clients').catch(() => null),
-        fetch('http://localhost:3000/products').catch(() => null)
+        fetch(`${API_URL}/orders`).catch(() => null),
+        fetch(`${API_URL}/clients`).catch(() => null),
+        fetch(`${API_URL}/products`).catch(() => null)
       ]);
 
       if (resPedidos && resPedidos.ok) {
@@ -156,7 +159,7 @@ export default function Pedidos() {
     }
 
     try {
-      const res = await fetch('http://localhost:3000/register', {
+      const res = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -261,21 +264,21 @@ export default function Pedidos() {
     try {
       let res;
       if (isEdicao) {
-        res = await fetch(`http://localhost:3000/orders/${pedidoEditandoId}`, {
+        res = await fetch(`${API_URL}/orders/${pedidoEditandoId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
         if (!res.ok) {
-          res = await fetch(`http://localhost:3000/orders/${pedidoEditandoId}/status`, {
+          res = await fetch(`${API_URL}/orders/${pedidoEditandoId}/status`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: status })
           });
         }
       } else {
-        res = await fetch('http://localhost:3000/orders', {
+        res = await fetch(`${API_URL}/orders`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -299,7 +302,7 @@ export default function Pedidos() {
 
   const atualizarStatusPedido = async (id, novoStatus) => {
     try {
-      const res = await fetch(`http://localhost:3000/orders/${id}/status`, {
+      const res = await fetch(`${API_URL}/orders/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: novoStatus })
@@ -318,7 +321,7 @@ export default function Pedidos() {
   const excluirPedido = async (id) => {
     if (!window.confirm('Tem certeza que deseja excluir este pedido?')) return;
     try {
-      const res = await fetch(`http://localhost:3000/orders/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/orders/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setPedidos(pedidos.filter(p => p.id !== id));
       } else {
@@ -775,7 +778,7 @@ export default function Pedidos() {
               </div>
 
               {/* COMPONENTE DE BUSCA DE PRODUTO COM AUTOCOMPLETE */}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', position: 'relative' }}>
                 <div style={{ flex: 1, position: 'relative' }}>
                   <input
                     type="text"
@@ -841,67 +844,62 @@ export default function Pedidos() {
                   min="1"
                   value={quantidadeTemp}
                   onChange={e => setQuantidadeTemp(e.target.value)}
-                  style={{ ...inputStyle, width: '70px', textAlign: 'center' }}
+                  style={{ width: '70px', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', textAlign: 'center' }}
                 />
 
                 <button
                   type="button"
                   onClick={adicionarProdutoAoPedido}
-                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
+                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
                 >
                   + Add
                 </button>
               </div>
 
               {/* LISTA DE ITENS ADICIONADOS */}
-              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', minHeight: '80px' }}>
-                {itensPedido.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', margin: '15px 0' }}>Nenhum item adicionado ao pedido.</p>
-                ) : (
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                    {itensPedido.map((item, index) => (
-                      <li key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: index === itensPedido.length - 1 ? 'none' : '1px solid #e2e8f0', fontSize: '13px' }}>
-                        <div>
-                          <strong>{item.nome}</strong> ({item.quantidade}x R$ {parseFloat(item.preco).toFixed(2)})
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ fontWeight: '700', color: '#16a34a' }}>R$ {parseFloat(item.subtotal).toFixed(2)}</span>
-                          <button
-                            type="button"
-                            onClick={() => removerItemPedido(index)}
-                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
-                          >
-                            <FaTrash />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              {itensPedido.length > 0 && (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#f8fafc' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#64748b' }}>
+                        <th style={{ padding: '6px' }}>PRODUTO</th>
+                        <th style={{ padding: '6px', textAlign: 'center' }}>QTD</th>
+                        <th style={{ padding: '6px', textAlign: 'right' }}>SUBTOTAL</th>
+                        <th style={{ padding: '6px', textAlign: 'right' }}>AÇÃO</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itensPedido.map((item, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '6px', fontWeight: '600', color: '#0f172a' }}>{item.nome}</td>
+                          <td style={{ padding: '6px', textAlign: 'center' }}>{item.quantidade}</td>
+                          <td style={{ padding: '6px', textAlign: 'right', fontWeight: '600' }}>R$ {item.subtotal.toFixed(2)}</td>
+                          <td style={{ padding: '6px', textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              onClick={() => removerItemPedido(idx)}
+                              style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
+                            >
+                              <FaTrash />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
 
-              {/* TOTAL DO PEDIDO */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#eff6ff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e40af' }}>Total do Pedido:</span>
-                <span style={{ fontSize: '18px', fontWeight: '800', color: '#1e40af' }}>R$ {calcularTotal().toFixed(2)}</span>
-              </div>
+                  <div style={{ marginTop: '12px', textAlign: 'right', fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
+                    TOTAL: R$ {calcularTotal().toFixed(2)}
+                  </div>
+                </div>
+              )}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
-                <button
-                  type="button"
-                  onClick={() => setModalAberto(false)}
-                  style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 18px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
-                >
-                  {pedidoEditandoId ? 'Salvar Alterações' : 'Finalizar Pedido'}
-                </button>
-              </div>
-
+              <button
+                type="submit"
+                style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', marginTop: '10px', fontSize: '15px' }}
+              >
+                {pedidoEditandoId ? 'Atualizar Pedido' : 'Finalizar Pedido'}
+              </button>
             </form>
           </div>
         </div>
@@ -909,99 +907,74 @@ export default function Pedidos() {
 
       {/* MODAL CADASTRO RÁPIDO DE CLIENTE */}
       {modalClienteAberto && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
-          <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '380px', padding: '20px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h4 style={{ margin: 0, color: '#0f172a', fontSize: '16px' }}>Novo Cliente Rápido</h4>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: '#0f172a' }}>Cadastro Rápido de Cliente</h3>
               <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalClienteAberto(false)} />
             </div>
 
-            <form onSubmit={salvarNovoClienteRapido}>
-              <div style={{ marginBottom: '12px' }}>
+            <form onSubmit={salvarNovoClienteRapido} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
                 <label style={labelStyle}>Nome Completo *</label>
                 <input
                   type="text"
+                  required
                   value={novoClienteNome}
                   onChange={e => setNovoClienteNome(e.target.value)}
-                  placeholder="Ex: João Silva"
-                  required
                   style={inputStyle}
                 />
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
+              <div>
                 <label style={labelStyle}>Telefone / WhatsApp</label>
                 <input
                   type="text"
+                  placeholder="(00) 00000-0000"
                   value={novoClienteTelefone}
                   onChange={e => setNovoClienteTelefone(e.target.value)}
-                  placeholder="(00) 00000-0000"
                   style={inputStyle}
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setModalClienteAberto(false)}
-                  style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
-                >
-                  Salvar Cliente
-                </button>
-              </div>
+              <button
+                type="submit"
+                style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer', marginTop: '6px' }}
+              >
+                Salvar e Selecionar
+              </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL HELPER DE ATALHO TECLA H */}
+      {/* MODAL HELPER TECLA H */}
       {modalAjudaAberto && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
-          <div style={{ background: '#fff', borderRadius: '14px', width: '100%', maxWidth: '440px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FaKeyboard style={{ color: '#2563eb', fontSize: '20px' }} />
-                <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>Guia & Atalhos de Pedidos</h3>
-              </div>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001 }}>
+          <div style={{ background: '#fff', padding: '28px', borderRadius: '14px', width: '100%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FaKeyboard style={{ color: '#2563eb' }} /> Atalhos e Dicas de Uso
+              </h3>
               <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalAjudaAberto(false)} />
             </div>
 
-            <div style={{ fontSize: '13px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px 12px' }}>
-                <strong style={{ color: '#1e40af' }}>Atalhos Rápidos:</strong>
-                <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px', lineHeight: '1.6' }}>
-                  <li><b>Tecla H:</b> Abre/fecha este menu de ajuda a qualquer momento.</li>
-                </ul>
-              </div>
-
-              <div style={{ lineHeight: '1.6' }}>
-                <strong style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>Regras & Dicas de Vendas:</strong>
-                <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                  <li><b>Filtro de Status:</b> Por padrão, a tela exibe apenas os pedidos situados como <i>PEDIDO FEITO</i> (pendentes de atendimento). Use o filtro no topo para consultar histórico completo.</li>
-                  <li><b>Busca Inteligente:</b> No modal de pedido, digite qualquer parte do nome ou telefone do cliente/produto para selecionar rapidamente.</li>
-                  <li><b>Cliente Rápido:</b> Caso o cliente do balcão ainda não esteja cadastrado, utilize o botão <b>+ Novo</b> ao lado da busca de cliente.</li>
-                </ul>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '14px', color: '#334155' }}>
+              <div><strong>[H]</strong> - Abre / fecha este menu de ajuda rápido em qualquer momento.</div>
+              <div><strong>Busca Rápida</strong> - Digite o nome do cliente ou o número do pedido na barra superior para filtrar instantaneamente.</div>
+              <div><strong>Autocomplete de Clientes</strong> - Ao criar um pedido, digite parte do nome para buscar ou clique em <em>+ Novo</em> para cadastrar na hora.</div>
+              <div><strong>Filtro de Status</strong> - Escolha exibir apenas pendentes para agilizar o atendimento no balcão.</div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
-              <button
-                onClick={() => setModalAjudaAberto(false)}
-                style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
-              >
-                Entendido
-              </button>
-            </div>
+            <button
+              onClick={() => setModalAjudaAberto(false)}
+              style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer', width: '100%', marginTop: '20px' }}
+            >
+              Entendi!
+            </button>
           </div>
         </div>
       )}
-
     </div>
   );
 }

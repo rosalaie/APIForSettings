@@ -1,11 +1,11 @@
 import './App.css';
 import React, { useEffect, useState } from 'react';
-import AppRoutes from './routes/AppRoutes.jsx';
+//import AppRoutes from './routes/AppRoutes.jsx';
 import { FaStore, FaUsers, FaBoxOpen, FaTags, FaChartBar, FaDollarSign, FaShoppingBag, FaSearch, FaTachometerAlt } from "react-icons/fa";
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-// Define a URL base da API (VITE_API_URL ou fallback para o backend do Render)
-const API_URL = import.meta.env.VITE_API_URL || 'https://sobmdidaadmin.onrender.com';
+// Define a URL base da API (VITE_API_URL ou fallback para o backend local)
+const API_URL = 'http://localhost:3000';
 
 function App() {
   const [clientes, setClientes] = useState([]);
@@ -512,3 +512,5 @@ const styles = {
 };
 
 export default App;
+
+  

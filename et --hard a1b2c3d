@@ -1,0 +1,5 @@
+[33mf599ca4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/loja-frontend[m[33m, [m[1;31morigin/feature/loja-frontend[m[33m)[m fix: adiciona base relatiivo no vite config para corrigir MIME typej
+[33m73551cd[m fix: atualiza URL da API no Categorias.jsx do frontend admin
+[33m3cae648[m fix: atualiza URL da API no Categorias.jsx do frontend admin
+[33m87a1d23[m fix: atualiza URLs de fetch para API_URL em Categorias
+[33m2e8ecb7[m fix: adiciona base relatiivo no vite config para corrigir MIME type

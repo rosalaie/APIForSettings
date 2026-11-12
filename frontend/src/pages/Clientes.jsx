@@ -1,8 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaSearch, FaTrash, FaEdit, FaTimes, FaChevronLeft, FaChevronRight, FaQuestionCircle, FaKeyboard } from 'react-icons/fa';
+import {
+  FaPlus,
+  FaSearch,
+  FaTrash,
+  FaEdit,
+  FaTimes,
+  FaChevronLeft,
+  FaChevronRight,
+  FaQuestionCircle,
+  FaKeyboard
+} from 'react-icons/fa';
 
-// Define a URL base da API (VITE_API_URL ou fallback para o backend do Render)
-const API_URL = import.meta.env.VITE_API_URL || 'https://sobmdidaadmin.onrender.com';
+// URL da API: local durante o desenvolvimento e Render em produção.
+const API_URL = import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV
+    ? 'http://localhost:3000'
+    : 'https://sobmdidaadmin.onrender.com');
+
+// Extrai uma mensagem de erro da resposta do backend.
+const obterMensagemErro = async (res) => {
+  try {
+    const data = await res.json();
+    return data?.error || data?.message || `Erro HTTP ${res.status}`;
+  } catch {
+    return `Erro HTTP ${res.status}`;
+  }
+};
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([]);
@@ -23,7 +46,7 @@ export default function Clientes() {
   const [cidades, setCidades] = useState([]);
   const [loadingCidades, setLoadingCidades] = useState(false);
 
-  // Campos do formulário (Padrão E-commerce)
+  // Campos do formulário
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
@@ -40,7 +63,10 @@ export default function Clientes() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       const tag = e.target.tagName.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+        return;
+      }
 
       if (e.key === 'h' || e.key === 'H') {
         e.preventDefault();
@@ -49,26 +75,41 @@ export default function Clientes() {
     };
 
     window.addEventListener('keydown', handleKeyDown);
+
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // CARREGAR ESTADOS PELO IBGE
   useEffect(() => {
     fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Erro HTTP ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => setEstados(Array.isArray(data) ? data : []))
-      .catch(err => console.error("Erro IBGE UF", err));
+      .catch(err => console.error('Erro IBGE UF:', err));
   }, []);
 
+  // CARREGAR CIDADES PELO IBGE
   useEffect(() => {
     if (!uf) {
       setCidades([]);
       return;
     }
+
     setLoadingCidades(true);
+
     fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Erro HTTP ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => setCidades(Array.isArray(data) ? data : []))
-      .catch(err => console.error("Erro IBGE Cidades", err))
+      .catch(err => console.error('Erro IBGE Cidades:', err))
       .finally(() => setLoadingCidades(false));
   }, [uf]);
 
@@ -76,14 +117,22 @@ export default function Clientes() {
     setPaginaAtual(1);
   }, [busca]);
 
+  // BUSCAR CEP PELO VIACEP
   const buscarCep = async (valorCep) => {
     const cepLimpo = valorCep.replace(/\D/g, '');
+
     setCep(valorCep);
 
     if (cepLimpo.length === 8) {
       try {
         const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+
+        if (!res.ok) {
+          throw new Error(`Erro HTTP ${res.status}`);
+        }
+
         const data = await res.json();
+
         if (!data.erro) {
           setRua(data.logradouro || '');
           setBairro(data.bairro || '');
@@ -91,24 +140,50 @@ export default function Clientes() {
           setCidade(data.localidade || '');
         }
       } catch (err) {
-        console.error("Erro ao buscar CEP", err);
+        console.error('Erro ao buscar CEP:', err);
       }
     }
   };
 
+  // CARREGAR CLIENTES DO BACKEND
   const carregarClientes = async () => {
     try {
       setLoading(true);
+
       const res = await fetch(`${API_URL}/clients`);
-      if (res.ok) {
-        const data = await res.json();
-        const listaClientes = Array.isArray(data) 
-          ? data.filter(c => c.origem === 'BALCAO' || c.role === 'CLIENT' || c.email?.includes('balcao_')) 
-          : [];
-        setClientes(listaClientes);
+
+      if (!res.ok) {
+        throw new Error(
+          await obterMensagemErro(res)
+        );
       }
+
+      const data = await res.json();
+
+      // Aceita diferentes formatos de resposta da API.
+      const lista = Array.isArray(data)
+        ? data
+        : data.clients || data.users || [];
+
+      if (!Array.isArray(lista)) {
+        throw new Error('O backend retornou um formato inválido de clientes.');
+      }
+
+      const listaClientes = lista.filter(c =>
+        c.origem === 'BALCAO' ||
+        c.role === 'CLIENT' ||
+        c.email?.includes('balcao_')
+      );
+
+      setClientes(listaClientes);
+
     } catch (err) {
-      console.error("Erro ao carregar clientes", err);
+      console.error('Erro ao carregar clientes:', err);
+
+      alert(
+        `Não foi possível carregar os clientes: ${err.message}`
+      );
+
     } finally {
       setLoading(false);
     }
@@ -118,6 +193,7 @@ export default function Clientes() {
     carregarClientes();
   }, []);
 
+  // LIMPAR FORMULÁRIO
   const limparFormulario = () => {
     setClienteEditandoId(null);
     setNome('');
@@ -133,11 +209,13 @@ export default function Clientes() {
     setCidade('');
   };
 
+  // ABRIR MODAL DE NOVO CLIENTE
   const abrirModalNovo = () => {
     limparFormulario();
     setModalAberto(true);
   };
 
+  // ABRIR MODAL DE EDIÇÃO
   const abrirModalEdicao = (c) => {
     setClienteEditandoId(c.id);
     setNome(c.nome || '');
@@ -151,9 +229,11 @@ export default function Clientes() {
     setBairro(c.bairro || '');
     setUf(c.uf || '');
     setCidade(c.cidade || '');
+
     setModalAberto(true);
   };
 
+  // CADASTRAR OU EDITAR CLIENTE
   const salvarCliente = async (e) => {
     e.preventDefault();
 
@@ -172,12 +252,22 @@ export default function Clientes() {
       return;
     }
 
-    if (!cep.trim() || !rua.trim() || !numero.trim() || !bairro.trim() || !uf.trim() || !cidade.trim()) {
-      alert('Por favor, preencha todos os campos obrigatórios do endereço (CEP, Rua, Número, Bairro, UF e Cidade).');
+    if (
+      !cep.trim() ||
+      !rua.trim() ||
+      !numero.trim() ||
+      !bairro.trim() ||
+      !uf.trim() ||
+      !cidade.trim()
+    ) {
+      alert(
+        'Por favor, preencha todos os campos obrigatórios do endereço (CEP, Rua, Número, Bairro, UF e Cidade).'
+      );
       return;
     }
 
     const partesEndereco = [];
+
     if (rua) partesEndereco.push(rua);
     if (numero) partesEndereco.push(`Nº ${numero}`);
     if (complemento) partesEndereco.push(`(${complemento})`);
@@ -205,161 +295,383 @@ export default function Clientes() {
 
     try {
       const isEdicao = Boolean(clienteEditandoId);
+
       let res;
 
       if (isEdicao) {
+        // PRIMEIRA TENTATIVA: rota /clients/:id
         res = await fetch(`${API_URL}/clients/${clienteEditandoId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify(payload)
-        }).catch(() => null);
+        });
 
-        if (!res || !res.ok) {
+        // SEGUNDA TENTATIVA: somente se a rota não existir
+        if (res.status === 404 || res.status === 405) {
           res = await fetch(`${API_URL}/users/${clienteEditandoId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json'
+            },
             body: JSON.stringify(payload)
-          }).catch(() => null);
+          });
         }
+
       } else {
+        // CADASTRAR NOVO CLIENTE
         res = await fetch(`${API_URL}/register`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify(payload)
-        }).catch(() => null);
+        });
       }
 
-      if (res && res.ok) {
-        alert(isEdicao ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
-        setModalAberto(false);
-        limparFormulario();
-        carregarClientes();
-      } else {
-        const errData = res ? await res.json().catch(() => null) : null;
-        alert(`Erro ao salvar cliente: ${errData?.error || 'Certifique-se de ter reiniciado o backend após adicionar a rota de edição.'}`);
+      // VERIFICAR SE O BACKEND CONFIRMOU A OPERAÇÃO
+      if (!res.ok) {
+        const mensagemErro = await obterMensagemErro(res);
+
+        throw new Error(mensagemErro);
       }
+
+      alert(
+        isEdicao
+          ? 'Cliente atualizado com sucesso!'
+          : 'Cliente cadastrado com sucesso!'
+      );
+
+      setModalAberto(false);
+      limparFormulario();
+
+      // RECARREGAR A LISTA APÓS A OPERAÇÃO
+      await carregarClientes();
+
     } catch (err) {
-      alert('Erro de conexão ao salvar cliente.');
+      console.error('Erro ao salvar cliente:', err);
+
+      alert(`Erro ao salvar cliente: ${err.message}`);
     }
   };
 
+  // EXCLUIR CLIENTE
   const excluirCliente = async (id) => {
-    if (!window.confirm('Tem certeza que deseja excluir este cliente?')) return;
+    if (!window.confirm('Tem certeza que deseja excluir este cliente?')) {
+      return;
+    }
+
     try {
-      const res = await fetch(`${API_URL}/clients/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setClientes(clientes.filter(c => c.id !== id));
-      } else {
-        alert('Erro ao excluir cliente.');
+      const res = await fetch(`${API_URL}/clients/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        throw new Error(await obterMensagemErro(res));
       }
+
+      alert('Cliente excluído com sucesso!');
+
+      await carregarClientes();
+
     } catch (err) {
-      alert('Erro ao excluir cliente.');
+      console.error('Erro ao excluir cliente:', err);
+
+      alert(`Erro ao excluir cliente: ${err.message}`);
     }
   };
 
+  // FILTRAR CLIENTES
   const clientesFiltrados = clientes.filter(c => {
     const termo = busca.toLowerCase();
+
     const nomeC = String(c.nome || '').toLowerCase();
     const emailC = String(c.email || '').toLowerCase();
     const cpfC = String(c.cpf || '').toLowerCase();
-    return nomeC.includes(termo) || emailC.includes(termo) || cpfC.includes(termo);
+
+    return (
+      nomeC.includes(termo) ||
+      emailC.includes(termo) ||
+      cpfC.includes(termo)
+    );
   });
 
-  const totalPaginas = Math.ceil(clientesFiltrados.length / itensPorPagina) || 1;
+  // PAGINAÇÃO
+  const totalPaginas = Math.ceil(
+    clientesFiltrados.length / itensPorPagina
+  ) || 1;
+
   const indiceInicial = (paginaAtual - 1) * itensPorPagina;
-  const clientesPaginados = clientesFiltrados.slice(indiceInicial, indiceInicial + itensPorPagina);
+
+  const clientesPaginados = clientesFiltrados.slice(
+    indiceInicial,
+    indiceInicial + itensPorPagina
+  );
 
   return (
     <div style={{ padding: '10px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '20px'
+      }}>
         <div>
-          <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Gestão de Clientes</h2>
-          <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
+          <h2 style={{
+            fontSize: '22px',
+            fontWeight: '800',
+            color: '#0f172a',
+            margin: 0
+          }}>
+            Gestão de Clientes
+          </h2>
+
+          <p style={{
+            color: '#64748b',
+            fontSize: '14px',
+            margin: '4px 0 0 0'
+          }}>
             Gerencie os clientes cadastrados no sistema ({clientesFiltrados.length} cadastrados).
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{
+          display: 'flex',
+          gap: '10px',
+          alignItems: 'center'
+        }}>
           {/* BOTÃO HELPER DE ATALHO */}
           <button
             onClick={() => setModalAjudaAberto(true)}
             title="Pressione a tecla H para abrir o Guia de Ajuda"
-            style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+            style={{
+              background: '#f1f5f9',
+              color: '#475569',
+              border: '1px solid #cbd5e1',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '13px'
+            }}
           >
-            <FaQuestionCircle style={{ color: '#2563eb' }} /> Ajuda [H]
+            <FaQuestionCircle style={{ color: '#2563eb' }} />
+            Ajuda [H]
           </button>
 
-          <button 
+          <button
             onClick={abrirModalNovo}
-            style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+            style={{
+              background: '#2563eb',
+              color: '#fff',
+              border: 'none',
+              padding: '10px 18px',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
           >
-            <FaPlus style={{ fontSize: '12px' }} /> Novo Cliente
+            <FaPlus style={{ fontSize: '12px' }} />
+            Novo Cliente
           </button>
         </div>
       </div>
 
-      <div style={{ background: '#fff', padding: '24px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', marginBottom: '20px' }}>
-          <FaSearch style={{ color: '#94a3b8', marginRight: '10px' }} />
+      <div style={{
+        background: '#fff',
+        padding: '24px',
+        borderRadius: '14px',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          background: '#f8fafc',
+          border: '1px solid #cbd5e1',
+          padding: '10px 14px',
+          borderRadius: '8px',
+          marginBottom: '20px'
+        }}>
+          <FaSearch style={{
+            color: '#94a3b8',
+            marginRight: '10px'
+          }} />
+
           <input
             type="text"
             placeholder="Buscar por nome, CPF ou e-mail..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              outline: 'none',
+              width: '100%',
+              fontSize: '14px'
+            }}
           />
         </div>
 
         {loading ? (
-          <p style={{ textAlign: 'center', color: '#64748b', padding: '20px' }}>Carregando clientes...</p>
+          <p style={{
+            textAlign: 'center',
+            color: '#64748b',
+            padding: '20px'
+          }}>
+            Carregando clientes...
+          </p>
         ) : (
           <>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse'
+            }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left' }}>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>NOME / CONTATO</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>CPF</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b' }}>ENDEREÇO</th>
-                  <th style={{ padding: '12px 16px', fontSize: '12px', color: '#64748b', textAlign: 'right' }}>AÇÕES</th>
+                <tr style={{
+                  borderBottom: '2px solid #f1f5f9',
+                  textAlign: 'left'
+                }}>
+                  <th style={{
+                    padding: '12px 16px',
+                    fontSize: '12px',
+                    color: '#64748b'
+                  }}>
+                    NOME / CONTATO
+                  </th>
+
+                  <th style={{
+                    padding: '12px 16px',
+                    fontSize: '12px',
+                    color: '#64748b'
+                  }}>
+                    CPF
+                  </th>
+
+                  <th style={{
+                    padding: '12px 16px',
+                    fontSize: '12px',
+                    color: '#64748b'
+                  }}>
+                    ENDEREÇO
+                  </th>
+
+                  <th style={{
+                    padding: '12px 16px',
+                    fontSize: '12px',
+                    color: '#64748b',
+                    textAlign: 'right'
+                  }}>
+                    AÇÕES
+                  </th>
                 </tr>
               </thead>
+
               <tbody>
                 {clientesPaginados.length === 0 ? (
                   <tr>
-                    <td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8', padding: '30px' }}>
+                    <td
+                      colSpan="4"
+                      style={{
+                        textAlign: 'center',
+                        color: '#94a3b8',
+                        padding: '30px'
+                      }}
+                    >
                       Nenhum cliente encontrado.
                     </td>
                   </tr>
                 ) : (
                   clientesPaginados.map(c => (
-                    <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <tr
+                      key={c.id}
+                      style={{
+                        borderBottom: '1px solid #f1f5f9'
+                      }}
+                    >
                       <td style={{ padding: '14px 16px' }}>
-                        <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
+                        <div style={{
+                          fontWeight: '600',
+                          color: '#0f172a',
+                          fontSize: '14px'
+                        }}>
                           {c.nome}
                         </div>
-                        <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>
+
+                        <div style={{
+                          color: '#64748b',
+                          fontSize: '12px',
+                          marginTop: '2px'
+                        }}>
                           {c.email || 'Sem e-mail'} | {c.telefone || 'Sem telefone'}
                         </div>
                       </td>
-                      <td style={{ padding: '14px 16px', color: '#475569', fontSize: '13px', fontWeight: '500' }}>
+
+                      <td style={{
+                        padding: '14px 16px',
+                        color: '#475569',
+                        fontSize: '13px',
+                        fontWeight: '500'
+                      }}>
                         {c.cpf || 'Não informado'}
                       </td>
-                      <td style={{ padding: '14px 16px', color: '#475569', fontSize: '13px' }}>
+
+                      <td style={{
+                        padding: '14px 16px',
+                        color: '#475569',
+                        fontSize: '13px'
+                      }}>
                         {c.endereco || 'Não informado'}
                       </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+
+                      <td style={{
+                        padding: '14px 16px',
+                        textAlign: 'right'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          gap: '8px'
+                        }}>
                           <button
                             onClick={() => abrirModalEdicao(c)}
                             title="Editar Cliente"
-                            style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{
+                              background: '#2563eb',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '8px 10px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
                           >
                             <FaEdit />
                           </button>
+
                           <button
                             onClick={() => excluirCliente(c.id)}
                             title="Excluir Cliente"
-                            style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{
+                              background: '#ef4444',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '8px 10px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
                           >
                             <FaTrash />
                           </button>
@@ -373,12 +685,31 @@ export default function Clientes() {
 
             {/* CONTROLES DE PAGINAÇÃO */}
             {clientesFiltrados.length > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #f1f5f9' }}>
-                <span style={{ fontSize: '13px', color: '#64748b' }}>
-                  Mostrando <b>{indiceInicial + 1}</b> a <b>{Math.min(indiceInicial + itensPorPagina, clientesFiltrados.length)}</b> de <b>{clientesFiltrados.length}</b> clientes
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: '20px',
+                paddingTop: '15px',
+                borderTop: '1px solid #f1f5f9'
+              }}>
+                <span style={{
+                  fontSize: '13px',
+                  color: '#64748b'
+                }}>
+                  Mostrando <b>{indiceInicial + 1}</b> a{' '}
+                  <b>{Math.min(
+                    indiceInicial + itensPorPagina,
+                    clientesFiltrados.length
+                  )}</b>{' '}
+                  de <b>{clientesFiltrados.length}</b> clientes
                 </span>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
                   <button
                     onClick={() => setPaginaAtual(prev => Math.max(prev - 1, 1))}
                     disabled={paginaAtual === 1}
@@ -396,10 +727,14 @@ export default function Clientes() {
                       color: '#334155'
                     }}
                   >
-                    <FaChevronLeft style={{ fontSize: '10px' }} /> Anterior
+                    <FaChevronLeft style={{ fontSize: '10px' }} />
+                    Anterior
                   </button>
 
-                  {Array.from({ length: totalPaginas }, (_, index) => index + 1).map(num => (
+                  {Array.from(
+                    { length: totalPaginas },
+                    (_, index) => index + 1
+                  ).map(num => (
                     <button
                       key={num}
                       onClick={() => setPaginaAtual(num)}
@@ -435,7 +770,8 @@ export default function Clientes() {
                       color: '#334155'
                     }}
                   >
-                    Próximo <FaChevronRight style={{ fontSize: '10px' }} />
+                    Próximo
+                    <FaChevronRight style={{ fontSize: '10px' }} />
                   </button>
                 </div>
               </div>
@@ -444,180 +780,471 @@ export default function Clientes() {
         )}
       </div>
 
+      {/* MODAL DE CADASTRO E EDIÇÃO */}
       {modalAberto && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '600px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px' }}>
-                {clienteEditandoId ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: '600px',
+            padding: '24px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px',
+              borderBottom: '1px solid #f1f5f9',
+              paddingBottom: '12px'
+            }}>
+              <h3 style={{
+                margin: 0,
+                color: '#0f172a',
+                fontSize: '18px'
+              }}>
+                {clienteEditandoId
+                  ? 'Editar Cliente'
+                  : 'Cadastrar Novo Cliente'}
               </h3>
-              <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalAberto(false)} />
+
+              <FaTimes
+                style={{
+                  cursor: 'pointer',
+                  color: '#64748b'
+                }}
+                onClick={() => setModalAberto(false)}
+              />
             </div>
 
-            <form onSubmit={salvarCliente} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
+            <form
+              onSubmit={salvarCliente}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px'
+              }}
+            >
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '2fr 1fr',
+                gap: '10px'
+              }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Nome Completo *</label>
-                  <input 
-                    type="text" 
-                    value={nome} 
-                    onChange={e => setNome(e.target.value)} 
+                  <label style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#334155',
+                    marginBottom: '4px'
+                  }}>
+                    Nome Completo *
+                  </label>
+
+                  <input
+                    type="text"
+                    value={nome}
+                    onChange={e => setNome(e.target.value)}
                     placeholder="Ex: Maria Silva"
                     required
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      boxSizing: 'border-box'
+                    }}
                   />
                 </div>
+
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>CPF *</label>
-                  <input 
-                    type="text" 
-                    value={cpf} 
-                    onChange={e => setCpf(e.target.value)} 
+                  <label style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#334155',
+                    marginBottom: '4px'
+                  }}>
+                    CPF *
+                  </label>
+
+                  <input
+                    type="text"
+                    value={cpf}
+                    onChange={e => setCpf(e.target.value)}
                     placeholder="000.000.000-00"
                     required
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      boxSizing: 'border-box'
+                    }}
                   />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '10px'
+              }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>E-mail (Opcional)</label>
-                  <input 
-                    type="email" 
-                    value={email} 
-                    onChange={e => setEmail(e.target.value)} 
+                  <label style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#334155',
+                    marginBottom: '4px'
+                  }}>
+                    E-mail (Opcional)
+                  </label>
+
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
                     placeholder="maria@email.com"
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      boxSizing: 'border-box'
+                    }}
                   />
                 </div>
+
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Telefone / WhatsApp *</label>
-                  <input 
-                    type="text" 
-                    value={telefone} 
-                    onChange={e => setTelefone(e.target.value)} 
+                  <label style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#334155',
+                    marginBottom: '4px'
+                  }}>
+                    Telefone / WhatsApp *
+                  </label>
+
+                  <input
+                    type="text"
+                    value={telefone}
+                    onChange={e => setTelefone(e.target.value)}
                     placeholder="(00) 00000-0000"
                     required
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      boxSizing: 'border-box'
+                    }}
                   />
                 </div>
               </div>
 
               {/* SEÇÃO ENDEREÇO E-COMMERCE */}
-              <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '10px', marginTop: '6px' }}>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: '#2563eb', display: 'block', marginBottom: '10px' }}>
+              <div style={{
+                borderTop: '1px dashed #e2e8f0',
+                paddingTop: '10px',
+                marginTop: '6px'
+              }}>
+                <span style={{
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  color: '#2563eb',
+                  display: 'block',
+                  marginBottom: '10px'
+                }}>
                   ENDEREÇO DE ENTREGA (OBRIGATÓRIO)
                 </span>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px', marginBottom: '10px' }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 2fr',
+                  gap: '10px',
+                  marginBottom: '10px'
+                }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>CEP *</label>
-                    <input 
-                      type="text" 
-                      value={cep} 
-                      onChange={e => buscarCep(e.target.value)} 
+                    <label style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#334155',
+                      marginBottom: '4px'
+                    }}>
+                      CEP *
+                    </label>
+
+                    <input
+                      type="text"
+                      value={cep}
+                      onChange={e => buscarCep(e.target.value)}
                       placeholder="00000-000"
                       maxLength={9}
                       required
-                      style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        boxSizing: 'border-box'
+                      }}
                     />
                   </div>
+
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Rua / Logradouro *</label>
-                    <input 
-                      type="text" 
-                      value={rua} 
-                      onChange={e => setRua(e.target.value)} 
+                    <label style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#334155',
+                      marginBottom: '4px'
+                    }}>
+                      Rua / Logradouro *
+                    </label>
+
+                    <input
+                      type="text"
+                      value={rua}
+                      onChange={e => setRua(e.target.value)}
                       placeholder="Ex: Av. Brasil"
                       required
-                      style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        boxSizing: 'border-box'
+                      }}
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 2fr 1fr',
+                  gap: '10px',
+                  marginBottom: '10px'
+                }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Número *</label>
-                    <input 
-                      type="text" 
-                      value={numero} 
-                      onChange={e => setNumero(e.target.value)} 
+                    <label style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#334155',
+                      marginBottom: '4px'
+                    }}>
+                      Número *
+                    </label>
+
+                    <input
+                      type="text"
+                      value={numero}
+                      onChange={e => setNumero(e.target.value)}
                       placeholder="123"
                       required
-                      style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        boxSizing: 'border-box'
+                      }}
                     />
                   </div>
+
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Complemento (Opcional)</label>
-                    <input 
-                      type="text" 
-                      value={complemento} 
-                      onChange={e => setComplemento(e.target.value)} 
+                    <label style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#334155',
+                      marginBottom: '4px'
+                    }}>
+                      Complemento (Opcional)
+                    </label>
+
+                    <input
+                      type="text"
+                      value={complemento}
+                      onChange={e => setComplemento(e.target.value)}
                       placeholder="Apto 101, Bloco B"
-                      style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        boxSizing: 'border-box'
+                      }}
                     />
                   </div>
+
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Bairro *</label>
-                    <input 
-                      type="text" 
-                      value={bairro} 
-                      onChange={e => setBairro(e.target.value)} 
+                    <label style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#334155',
+                      marginBottom: '4px'
+                    }}>
+                      Bairro *
+                    </label>
+
+                    <input
+                      type="text"
+                      value={bairro}
+                      onChange={e => setBairro(e.target.value)}
                       placeholder="Centro"
                       required
-                      style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        boxSizing: 'border-box'
+                      }}
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px' }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 2fr',
+                  gap: '10px'
+                }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Estado (UF) *</label>
-                    <select 
-                      value={uf} 
-                      onChange={e => { setUf(e.target.value); setCidade(''); }}
+                    <label style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#334155',
+                      marginBottom: '4px'
+                    }}>
+                      Estado (UF) *
+                    </label>
+
+                    <select
+                      value={uf}
+                      onChange={e => {
+                        setUf(e.target.value);
+                        setCidade('');
+                      }}
                       required
-                      style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        background: '#fff',
+                        boxSizing: 'border-box'
+                      }}
                     >
                       <option value="">UF...</option>
+
                       {estados.map(e => (
-                        <option key={e.id} value={e.sigla}>{e.sigla} - {e.nome}</option>
+                        <option key={e.id} value={e.sigla}>
+                          {e.sigla} - {e.nome}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Município / Cidade *</label>
-                    <select 
-                      value={cidade} 
+                    <label style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#334155',
+                      marginBottom: '4px'
+                    }}>
+                      Município / Cidade *
+                    </label>
+
+                    <select
+                      value={cidade}
                       onChange={e => setCidade(e.target.value)}
                       disabled={!uf || loadingCidades}
                       required
-                      style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        background: '#fff',
+                        boxSizing: 'border-box'
+                      }}
                     >
-                      <option value="">{loadingCidades ? 'Carregando cidades...' : 'Selecione a cidade...'}</option>
+                      <option value="">
+                        {loadingCidades
+                          ? 'Carregando cidades...'
+                          : 'Selecione a cidade...'}
+                      </option>
+
                       {cidades.map(c => (
-                        <option key={c.id} value={c.nome}>{c.nome}</option>
+                        <option key={c.id} value={c.nome}>
+                          {c.nome}
+                        </option>
                       ))}
                     </select>
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
-                <button 
-                  type="button" 
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '10px',
+                borderTop: '1px solid #f1f5f9',
+                paddingTop: '14px'
+              }}>
+                <button
+                  type="button"
                   onClick={() => setModalAberto(false)}
-                  style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '10px 18px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
+                  style={{
+                    background: '#e2e8f0',
+                    color: '#475569',
+                    border: 'none',
+                    padding: '10px 18px',
+                    borderRadius: '6px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
                 >
                   Cancelar
                 </button>
-                <button 
-                  type="submit" 
-                  style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
+
+                <button
+                  type="submit"
+                  style={{
+                    background: '#2563eb',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '6px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
                 >
-                  {clienteEditandoId ? 'Salvar Alterações' : 'Salvar Cliente'}
+                  {clienteEditandoId
+                    ? 'Salvar Alterações'
+                    : 'Salvar Cliente'}
                 </button>
               </div>
             </form>
@@ -627,38 +1254,137 @@ export default function Clientes() {
 
       {/* MODAL HELPER DE ATALHO TECLA H */}
       {modalAjudaAberto && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
-          <div style={{ background: '#fff', borderRadius: '14px', width: '100%', maxWidth: '440px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FaKeyboard style={{ color: '#2563eb', fontSize: '20px' }} />
-                <h3 style={{ margin: 0, color: '#0f172a', fontSize: '18px', fontWeight: '700' }}>Guia de Clientes</h3>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1200
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '14px',
+            width: '100%',
+            maxWidth: '440px',
+            padding: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px',
+              borderBottom: '1px solid #f1f5f9',
+              paddingBottom: '12px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <FaKeyboard style={{
+                  color: '#2563eb',
+                  fontSize: '20px'
+                }} />
+
+                <h3 style={{
+                  margin: 0,
+                  color: '#0f172a',
+                  fontSize: '18px',
+                  fontWeight: '700'
+                }}>
+                  Guia de Clientes
+                </h3>
               </div>
-              <FaTimes style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setModalAjudaAberto(false)} />
+
+              <FaTimes
+                style={{
+                  cursor: 'pointer',
+                  color: '#64748b'
+                }}
+                onClick={() => setModalAjudaAberto(false)}
+              />
             </div>
 
-            <div style={{ fontSize: '13px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px 12px' }}>
-                <strong style={{ color: '#1e40af' }}>Atalhos Rápidos:</strong>
-                <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px', lineHeight: '1.6' }}>
-                  <li><b>Tecla H:</b> Abre/fecha este menu de ajuda a qualquer momento.</li>
+            <div style={{
+              fontSize: '13px',
+              color: '#334155',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '8px',
+                padding: '10px 12px'
+              }}>
+                <strong style={{ color: '#1e40af' }}>
+                  Atalhos Rápidos:
+                </strong>
+
+                <ul style={{
+                  margin: '6px 0 0 0',
+                  paddingLeft: '20px',
+                  lineHeight: '1.6'
+                }}>
+                  <li>
+                    <b>Tecla H:</b> Abre/fecha este menu de ajuda a qualquer momento.
+                  </li>
                 </ul>
               </div>
 
               <div style={{ lineHeight: '1.6' }}>
-                <strong style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>Regras de Cadastro de Clientes:</strong>
-                <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                  <li><b>Obrigatórios:</b> Nome Completo, CPF, Telefone e Endereço Completo (CEP, Rua, Nº, Bairro, UF, Cidade).</li>
-                  <li><b>Opcionais:</b> E-mail e Complemento do endereço.</li>
-                  <li><b>Consulta CEP:</b> Digite o CEP (8 dígitos) para preenchimento automático da rua, bairro, UF e cidade via ViaCEP.</li>
+                <strong style={{
+                  color: '#0f172a',
+                  display: 'block',
+                  marginBottom: '4px'
+                }}>
+                  Regras de Cadastro de Clientes:
+                </strong>
+
+                <ul style={{
+                  margin: 0,
+                  paddingLeft: '20px'
+                }}>
+                  <li>
+                    <b>Obrigatórios:</b> Nome Completo, CPF, Telefone e Endereço Completo (CEP, Rua, Nº, Bairro, UF, Cidade).
+                  </li>
+
+                  <li>
+                    <b>Opcionais:</b> E-mail e Complemento do endereço.
+                  </li>
+
+                  <li>
+                    <b>Consulta CEP:</b> Digite o CEP (8 dígitos) para preenchimento automático da rua, bairro, UF e cidade via ViaCEP.
+                  </li>
                 </ul>
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              marginTop: '20px',
+              borderTop: '1px solid #f1f5f9',
+              paddingTop: '14px'
+            }}>
               <button
                 onClick={() => setModalAjudaAberto(false)}
-                style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 20px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
+                style={{
+                  background: '#2563eb',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '8px 20px',
+                  borderRadius: '6px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
               >
                 Entendido
               </button>

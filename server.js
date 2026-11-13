@@ -561,6 +561,9 @@ app.post('/pagamento', async (req, res) => {
 
 
 // Inicialização do Servidor
-app.listen(3000, () => {
-  console.log('Servidor rodando liso na porta 3000');
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
 });

@@ -43,7 +43,7 @@ function RequireRole({ role, children }) {
     }
 
     if (usuario?.role === 'ADMIN') {
-      return <Navigate to="/categorias" replace />;
+      return <Navigate to="/admin" replace />;
     }
 
     return <Navigate to="/login" replace />;
@@ -57,31 +57,18 @@ export default function AppRoutes() {
     <BrowserRouter>
       <Routes>
 
-        {/* Área administrativa */}
-        <Route
-          path="/"
-          element={
-            <RequireRole role="ADMIN">
-              <App />
-            </RequireRole>
-          }
-        >
-          <Route index element={<Navigate to="/categorias" replace />} />
-
-          <Route path="clientes" element={<Clientes />} />
-          <Route path="produtos" element={<Produtos />} />
-          <Route path="categorias" element={<Categorias />} />
-          <Route path="pedidos" element={<Pedidos />} />
-          <Route path="relatorios" element={<Relatorios />} />
-        </Route>
-
-        {/* Loja pública */}
+        {/* LOJA PÚBLICA */}
+        <Route path="/" element={<Loja />} />
         <Route path="/loja" element={<Loja />} />
 
-        {/* Carrinho */}
+        {/* CARRINHO PÚBLICO */}
         <Route path="/carrinho" element={<Carrinho />} />
 
-        {/* Área do cliente */}
+        {/* AUTENTICAÇÃO */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* ÁREA DO CLIENTE */}
         <Route
           path="/minha-conta"
           element={
@@ -100,15 +87,25 @@ export default function AppRoutes() {
           }
         />
 
-        {/* Autenticação */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-
-        {/* Rota não encontrada */}
+        {/* PAINEL ADMINISTRATIVO */}
         <Route
-          path="*"
-          element={<Navigate to="/loja" replace />}
-        />
+          path="/admin"
+          element={
+            <RequireRole role="ADMIN">
+              <App />
+            </RequireRole>
+          }
+        >
+          <Route index element={<Navigate to="/admin" replace />} />
+          <Route path="clientes" element={<Clientes />} />
+          <Route path="produtos" element={<Produtos />} />
+          <Route path="categorias" element={<Categorias />} />
+          <Route path="pedidos" element={<Pedidos />} />
+          <Route path="relatorios" element={<Relatorios />} />
+        </Route>
+
+        {/* ROTAS NÃO ENCONTRADAS */}
+        <Route path="*" element={<Navigate to="/" replace />} />
 
       </Routes>
     </BrowserRouter>

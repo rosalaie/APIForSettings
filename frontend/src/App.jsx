@@ -88,11 +88,11 @@ function App() {
 
   // Título conforme a página atual
   const obterTituloPagina = () => {
-    if (location.pathname === '/clientes') return 'CLIENTES';
-    if (location.pathname === '/produtos') return 'CATÁLOGO DE PRODUTOS';
-    if (location.pathname === '/categorias') return 'CATEGORIAS';
-    if (location.pathname === '/pedidos') return 'GESTÃO DE PEDIDOS';
-    if (location.pathname === '/relatorios') return 'RELATÓRIOS E ANÁLISES';
+    if (location.pathname === '/admin/clientes') return 'CLIENTES';
+    if (location.pathname === '/admin/produtos') return 'CATÁLOGO DE PRODUTOS';
+    if (location.pathname === '/admin/categorias') return 'CATEGORIAS';
+    if (location.pathname === '/admin/pedidos') return 'GESTÃO DE PEDIDOS';
+    if (location.pathname === '/admin/relatorios') return 'RELATÓRIOS E ANÁLISES';
 
     return 'PAINEL DE CONTROLE';
   };
@@ -203,8 +203,8 @@ function App() {
           <nav className="sidebar-menu">
 
             <Link
-              to="/"
-              className={`menu-item ${location.pathname === '/' ? 'active' : ''}`}
+              to="/admin"
+              className={`menu-item ${location.pathname === '/admin' ? 'active' : ''}`}
             >
               <div className="logo">
                 <FaTachometerAlt />
@@ -213,8 +213,8 @@ function App() {
             </Link>
 
             <Link
-              to="/clientes"
-              className={`menu-item ${location.pathname === '/clientes' ? 'active' : ''}`}
+              to="/admin/clientes"
+              className={`menu-item ${location.pathname === '/admin/clientes' ? 'active' : ''}`}
             >
               <div className="logo">
                 <FaUsers />
@@ -223,8 +223,8 @@ function App() {
             </Link>
 
             <Link
-              to="/produtos"
-              className={`menu-item ${location.pathname === '/produtos' ? 'active' : ''}`}
+              to="/admin/produtos"
+              className={`menu-item ${location.pathname === '/admin/produtos' ? 'active' : ''}`}
             >
               <div className="logo">
                 <FaBoxOpen />
@@ -233,8 +233,8 @@ function App() {
             </Link>
 
             <Link
-              to="/pedidos"
-              className={`menu-item ${location.pathname === '/pedidos' ? 'active' : ''}`}
+              to="/admin/pedidos"
+              className={`menu-item ${location.pathname === '/admin/pedidos' ? 'active' : ''}`}
             >
               <div className="logo">
                 <FaShoppingBag />
@@ -243,8 +243,8 @@ function App() {
             </Link>
 
             <Link
-              to="/categorias"
-              className={`menu-item ${location.pathname === '/categorias' ? 'active' : ''}`}
+              to="/admin/categorias"
+              className={`menu-item ${location.pathname === '/admin/categorias' ? 'active' : ''}`}
             >
               <div className="logo">
                 <FaTags />
@@ -253,8 +253,8 @@ function App() {
             </Link>
 
             <Link
-              to="/relatorios"
-              className={`menu-item ${location.pathname === '/relatorios' ? 'active' : ''}`}
+              to="/admin/relatorios"
+              className={`menu-item ${location.pathname === '/admin/relatorios' ? 'active' : ''}`}
             >
               <div className="logo">
                 <FaChartBar />
@@ -326,7 +326,7 @@ function App() {
 
         <div className="content-area">
 
-          {location.pathname !== '/' ? (
+          {location.pathname !== '/admin' ? (
             <Outlet />
           ) : (
             <>

@@ -14,7 +14,6 @@ import {
   FaFilter
 } from 'react-icons/fa';
 
-// URL da API: local durante o desenvolvimento e Render em produção.
 const API_URL = import.meta.env.VITE_API_URL ||
   (import.meta.env.DEV
     ? 'http://localhost:3000'
@@ -29,14 +28,11 @@ export default function Produtos() {
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState(null);
 
-  // Modal de ajuda
   const [modalAjudaAberto, setModalAjudaAberto] = useState(false);
 
-  // Paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 20;
 
-  // Formulário de produto
   const [nome, setNome] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
   const [preco, setPreco] = useState('');
@@ -47,14 +43,34 @@ export default function Produtos() {
   const [previewLocal, setPreviewLocal] = useState('');
   const [uploadingImg, setUploadingImg] = useState(false);
 
-  // Modal de categoria
   const [modalCategoriaAberto, setModalCategoriaAberto] = useState(false);
   const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
 
   const IMGBB_API_KEY = '7977dacd0664e5cededa23464cff6599';
 
-  // Obtém mensagem de erro retornada pelo backend
+  // Obtém o token da sessão do administrador.
+  const obterToken = () => localStorage.getItem('token');
+
+  // Verifica a autenticação e monta os cabeçalhos das requisições.
+  const obterHeadersAutenticados = () => {
+    const token = obterToken();
+
+    if (!token) {
+      throw new Error('Sua sessão expirou. Faça login novamente.');
+    }
+
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    };
+  };
+
+  // Obtém mensagem de erro retornada pelo backend.
   const obterMensagemErro = async (res) => {
+    if (res.status === 401 || res.status === 403) {
+      return 'Sua sessão expirou ou você não tem permissão para realizar esta operação. Faça login novamente como administrador.';
+    }
+
     try {
       const data = await res.json();
       return data.error || data.message || `Erro HTTP ${res.status}`;
@@ -63,7 +79,7 @@ export default function Produtos() {
     }
   };
 
-  // Normaliza respostas que podem vir como lista direta ou objeto
+  // Normaliza respostas que podem vir como lista direta ou objeto.
   const obterLista = (data, chaves) => {
     if (Array.isArray(data)) {
       return data;
@@ -78,7 +94,7 @@ export default function Produtos() {
     return null;
   };
 
-  // Atalho de teclado H para abrir a ajuda
+  // Atalho de teclado H para abrir a ajuda.
   useEffect(() => {
     const handleKeyDown = (e) => {
       const tag = e.target?.tagName?.toLowerCase();
@@ -105,7 +121,7 @@ export default function Produtos() {
     };
   }, []);
 
-  // Upload de imagem para o ImgBB
+  // Upload de imagem para o ImgBB.
   const fazerUploadImagemImgBB = async () => {
     if (!imagemArquivo) {
       return imagemUrl || (previewLocal.startsWith('blob:') ? '' : previewLocal);
@@ -133,7 +149,8 @@ export default function Produtos() {
     return data.data.url;
   };
 
-  // Carrega produtos e categorias
+  // Carrega produtos e categorias.
+  // Essas consultas continuam públicas no backend.
   const carregarDados = async () => {
     try {
       setLoading(true);
@@ -189,7 +206,7 @@ export default function Produtos() {
     setPaginaAtual(1);
   }, [busca, filtroStatus]);
 
-  // Limpa o formulário
+  // Limpa o formulário.
   const limparFormulario = () => {
     setNome('');
     setCategoriaId('');
@@ -203,13 +220,13 @@ export default function Produtos() {
     setUploadingImg(false);
   };
 
-  // Abre modal para novo produto
+  // Abre modal para novo produto.
   const abrirModalNovo = () => {
     limparFormulario();
     setModalAberto(true);
   };
 
-  // Abre modal para editar produto
+  // Abre modal para editar produto.
   const abrirModalEditar = (prod) => {
     setProdutoEditando(prod);
 
@@ -238,7 +255,7 @@ export default function Produtos() {
     setModalAberto(true);
   };
 
-  // Seleção de imagem
+  // Seleção de imagem.
   const handleFileChange = (e) => {
     const file = e.target.files[0];
 
@@ -249,7 +266,7 @@ export default function Produtos() {
     }
   };
 
-  // Cadastro de nova categoria
+  // Cadastro de nova categoria.
   const salvarNovaCategoria = async (e) => {
     e.preventDefault();
 
@@ -263,13 +280,15 @@ export default function Produtos() {
     try {
       const res = await fetch(`${API_URL}/categories`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: obterHeadersAutenticados(),
         body: JSON.stringify({
           nome: nomeFormatado
         })
       });
+
+      if (res.status === 401 || res.status === 403) {
+        throw new Error(await obterMensagemErro(res));
+      }
 
       if (!res.ok) {
         throw new Error(await obterMensagemErro(res));
@@ -302,7 +321,7 @@ export default function Produtos() {
     }
   };
 
-  // Cadastro e edição de produtos
+  // Cadastro e edição de produtos.
   const salvarProduto = async (e) => {
     e.preventDefault();
 
@@ -320,7 +339,6 @@ export default function Produtos() {
       return;
     }
 
-    // Verifica produtos duplicados
     const isEdicao = !!produtoEditando;
 
     const jaExiste = produtos.some(p => {
@@ -378,11 +396,13 @@ export default function Produtos() {
 
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: obterHeadersAutenticados(),
         body: JSON.stringify(payload)
       });
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error(await obterMensagemErro(response));
+      }
 
       if (!response.ok) {
         throw new Error(await obterMensagemErro(response));
@@ -411,7 +431,7 @@ export default function Produtos() {
     }
   };
 
-  // Exclusão de produto
+  // Exclusão de produto com autenticação JWT.
   const excluirProduto = async (id) => {
     if (!window.confirm('Tem certeza que deseja excluir este produto?')) {
       return;
@@ -419,8 +439,13 @@ export default function Produtos() {
 
     try {
       const res = await fetch(`${API_URL}/products/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: obterHeadersAutenticados()
       });
+
+      if (res.status === 401 || res.status === 403) {
+        throw new Error(await obterMensagemErro(res));
+      }
 
       if (!res.ok) {
         const mensagem = await obterMensagemErro(res);
@@ -442,11 +467,11 @@ export default function Produtos() {
 
     } catch (err) {
       console.error('Erro ao excluir produto:', err);
-      alert('Erro de conexão ao excluir produto.');
+      alert(err.message || 'Erro de conexão ao excluir produto.');
     }
   };
 
-  // Filtragem de produtos
+  // Filtragem de produtos.
   const produtosFiltrados = produtos.filter(p => {
     const termo = busca.toLowerCase();
 
@@ -468,7 +493,7 @@ export default function Produtos() {
     return passaTexto && passaStatus;
   });
 
-  // Paginação
+  // Paginação.
   const totalPaginas =
     Math.ceil(produtosFiltrados.length / itensPorPagina) || 1;
 

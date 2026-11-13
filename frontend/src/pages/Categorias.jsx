@@ -15,6 +15,27 @@ export default function Categorias() {
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
 
+  // Recuperar token do administrador
+  const obterToken = () => {
+    return localStorage.getItem('token');
+  };
+
+  // Verificar resposta da API
+  const verificarResposta = async (res) => {
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        'Sua sessão expirou ou você não tem permissão. Faça login novamente.'
+      );
+    }
+
+    if (!res.ok) {
+      const erro = await res.text();
+      throw new Error(erro || `Erro HTTP: ${res.status}`);
+    }
+
+    return res;
+  };
+
   // Carregar categorias
   const carregarCategorias = async () => {
     try {
@@ -70,6 +91,13 @@ export default function Categorias() {
   const salvarCategoria = async (e) => {
     e.preventDefault();
 
+    const token = obterToken();
+
+    if (!token) {
+      alert('Sua sessão expirou. Faça login novamente.');
+      return;
+    }
+
     const payload = {
       nome: nome.trim(),
       descricao: descricao.trim()
@@ -83,15 +111,13 @@ export default function Categorias() {
       const res = await fetch(url, {
         method: categoriaEditando ? 'PUT' : 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) {
-        const erro = await res.text();
-        throw new Error(erro || `Erro HTTP: ${res.status}`);
-      }
+      await verificarResposta(res);
 
       alert(
         categoriaEditando
@@ -118,15 +144,22 @@ export default function Categorias() {
       return;
     }
 
+    const token = obterToken();
+
+    if (!token) {
+      alert('Sua sessão expirou. Faça login novamente.');
+      return;
+    }
+
     try {
       const res = await fetch(`${API_URL}/categories/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
 
-      if (!res.ok) {
-        const erro = await res.text();
-        throw new Error(erro || `Erro HTTP: ${res.status}`);
-      }
+      await verificarResposta(res);
 
       alert('Categoria excluída com sucesso!');
 

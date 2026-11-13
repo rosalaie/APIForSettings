@@ -1,12 +1,19 @@
 import './App.css';
 import React, { useEffect, useState } from 'react';
-//import AppRoutes from './routes/AppRoutes.jsx';
-import { FaStore, FaUsers, FaBoxOpen, FaTags, FaChartBar, FaDollarSign, FaShoppingBag, FaSearch, FaTachometerAlt } from "react-icons/fa";
+import {
+  FaStore,
+  FaUsers,
+  FaBoxOpen,
+  FaTags,
+  FaChartBar,
+  FaDollarSign,
+  FaShoppingBag,
+  FaSearch,
+  FaTachometerAlt
+} from 'react-icons/fa';
+
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import API_URL from './services/api';
-
-// Define a URL base da API (VITE_API_URL ou fallback para o backend local)
-
 
 function App() {
   const [clientes, setClientes] = useState([]);
@@ -20,74 +27,134 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const obterIniciais = (nome) => {
-    if (!nome) return 'AD';
-    const partes = nome.trim().split(' ');
-    if (partes.length === 1) return partes[0].substring(0, 2).toUpperCase();
-    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
-  };
-
+  // Recupera os dados do usuário autenticado
   useEffect(() => {
     const userStorage = localStorage.getItem('user');
-    if (userStorage) {
-      try {
-        setUsuarioLogado(JSON.parse(userStorage));
-      } catch (e) {
-        setUsuarioLogado({ nome: 'Administrador', email: 'admin@admin.com' });
-      }
-    } else {
-      setUsuarioLogado({ nome: 'Administrador', email: 'admin@admin.com' });
-    }
-  }, [location.pathname]);
+    const token = localStorage.getItem('token');
 
+    if (!userStorage || !token) {
+      setUsuarioLogado(null);
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    try {
+      const usuario = JSON.parse(userStorage);
+
+      if (usuario.role !== 'ADMIN') {
+        setUsuarioLogado(null);
+        navigate('/loja', { replace: true });
+        return;
+      }
+
+      setUsuarioLogado(usuario);
+    } catch (error) {
+      console.error('Erro ao recuperar usuário:', error);
+
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+
+      setUsuarioLogado(null);
+      navigate('/login', { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
+  // Obtém as iniciais do usuário
+  const obterIniciais = (nome) => {
+    if (!nome) return 'AD';
+
+    const partes = nome.trim().split(' ');
+
+    if (partes.length === 1) {
+      return partes[0].substring(0, 2).toUpperCase();
+    }
+
+    return (
+      partes[0][0] +
+      partes[partes.length - 1][0]
+    ).toUpperCase();
+  };
+
+  // Encerrar sessão
   const handleLogout = () => {
     if (window.confirm('Deseja realmente sair do sistema?')) {
       localStorage.removeItem('user');
       localStorage.removeItem('token');
+
       setUsuarioLogado(null);
       navigate('/login');
     }
   };
 
+  // Título conforme a página atual
   const obterTituloPagina = () => {
     if (location.pathname === '/clientes') return 'CLIENTES';
     if (location.pathname === '/produtos') return 'CATÁLOGO DE PRODUTOS';
     if (location.pathname === '/categorias') return 'CATEGORIAS';
     if (location.pathname === '/pedidos') return 'GESTÃO DE PEDIDOS';
     if (location.pathname === '/relatorios') return 'RELATÓRIOS E ANÁLISES';
+
     return 'PAINEL DE CONTROLE';
   };
 
+  // Carregar dados do dashboard
   async function carregarDadosDashboard() {
     try {
       setLoading(true);
+      setErro('');
+
+      const token = localStorage.getItem('token');
+
+      const headers = {
+        Authorization: `Bearer ${token}`
+      };
+
       const [resUsers, resPedidos, resProdutos] = await Promise.all([
-        fetch(`${API_URL}/users`).catch(() => null),
-        fetch(`${API_URL}/orders`).catch(() => null),
-        fetch(`${API_URL}/products`).catch(() => null)
+        fetch(`${API_URL}/users`, { headers }).catch(() => null),
+        fetch(`${API_URL}/orders`, { headers }).catch(() => null),
+        fetch(`${API_URL}/products`, { headers }).catch(() => null)
       ]);
 
       if (resUsers && resUsers.ok) {
         const usersData = await resUsers.json();
-        // FILTRO: Garante que o Dashboard só considere clientes do balcão/loja
-        const apenasClientes = Array.isArray(usersData) 
-          ? usersData.filter(u => u.origem === 'BALCAO' || u.role === 'CLIENT' || u.email?.includes('balcao_'))
+
+        const apenasClientes = Array.isArray(usersData)
+          ? usersData.filter(u =>
+              u.origem === 'BALCAO' ||
+              u.role === 'CLIENT' ||
+              u.email?.includes('balcao_')
+            )
           : [];
+
         setClientes(apenasClientes);
       }
-      
+
       if (resPedidos && resPedidos.ok) {
         const pedidosData = await resPedidos.json();
-        setPedidos(Array.isArray(pedidosData) ? pedidosData : []);
+
+        setPedidos(
+          Array.isArray(pedidosData) ? pedidosData : []
+        );
       }
 
       if (resProdutos && resProdutos.ok) {
         const prodData = await resProdutos.json();
-        setProdutos(Array.isArray(prodData) ? prodData : []);
+
+        setProdutos(
+          Array.isArray(prodData) ? prodData : []
+        );
+      }
+
+      if (
+        (resUsers && !resUsers.ok) ||
+        (resPedidos && !resPedidos.ok) ||
+        (resProdutos && !resProdutos.ok)
+      ) {
+        setErro('Não foi possível carregar alguns dados do painel.');
       }
 
     } catch (err) {
-      console.error(err);
+      console.error('Erro ao carregar dashboard:', err);
       setErro('Não foi possível carregar alguns dados do painel.');
     } finally {
       setLoading(false);
@@ -95,23 +162,35 @@ function App() {
   }
 
   useEffect(() => {
-    carregarDadosDashboard();
-  }, []);
+    if (usuarioLogado?.role === 'ADMIN') {
+      carregarDadosDashboard();
+    }
+  }, [usuarioLogado]);
 
-  const totalVendas = pedidos.reduce((acc, p) => acc + (Number(p.total) || 0), 0);
+  // Indicadores do dashboard
+  const totalVendas = pedidos.reduce(
+    (acc, p) => acc + (Number(p.total) || 0),
+    0
+  );
 
-  const pedidosPendentes = pedidos.filter(p => 
+  const pedidosPendentes = pedidos.filter(p =>
     !p.status || p.status.toLowerCase().includes('pendente')
   ).length;
 
-  const clientesFiltrados = clientes.filter(c => 
+  const clientesFiltrados = clientes.filter(c =>
     (c.nome || c.name || '').toLowerCase().includes(busca.toLowerCase()) ||
     (c.email || '').toLowerCase().includes(busca.toLowerCase())
   );
 
+  // Evita renderizar o painel antes de validar o usuário
+  if (!usuarioLogado || usuarioLogado.role !== 'ADMIN') {
+    return null;
+  }
+
   return (
     <div className="app-layout">
-      {/* 1. SIDEBAR */}
+
+      {/* SIDEBAR */}
       <aside className="sidebar" style={styles.sidebar}>
         <div>
           <div className="sidebar-title">
@@ -120,70 +199,93 @@ function App() {
               <span className="logo-mdida">MDIDA</span>
             </div>
           </div>
-          
+
           <nav className="sidebar-menu">
-            <Link to="/" className={`menu-item ${location.pathname === '/' ? 'active' : ''}`}>
-              <div className='logo'>     
-                <FaTachometerAlt /> 
-                <span> Dashboard </span>
+
+            <Link
+              to="/"
+              className={`menu-item ${location.pathname === '/' ? 'active' : ''}`}
+            >
+              <div className="logo">
+                <FaTachometerAlt />
+                <span>Dashboard</span>
               </div>
             </Link>
 
-            <Link to="/clientes" className={`menu-item ${location.pathname === '/clientes' ? 'active' : ''}`}>
-              <div className='logo'>     
-                <FaUsers /> 
-                <span> Clientes </span>
+            <Link
+              to="/clientes"
+              className={`menu-item ${location.pathname === '/clientes' ? 'active' : ''}`}
+            >
+              <div className="logo">
+                <FaUsers />
+                <span>Clientes</span>
               </div>
             </Link>
 
-            <Link to="/produtos" className={`menu-item ${location.pathname === '/produtos' ? 'active' : ''}`}>
-              <div className='logo'>     
-                <FaBoxOpen /> 
-                <span> Produtos </span>
+            <Link
+              to="/produtos"
+              className={`menu-item ${location.pathname === '/produtos' ? 'active' : ''}`}
+            >
+              <div className="logo">
+                <FaBoxOpen />
+                <span>Produtos</span>
               </div>
             </Link>
 
-            <Link to="/pedidos" className={`menu-item ${location.pathname === '/pedidos' ? 'active' : ''}`}>
-              <div className='logo'>     
-                <FaShoppingBag /> 
-                <span> Pedidos </span>
+            <Link
+              to="/pedidos"
+              className={`menu-item ${location.pathname === '/pedidos' ? 'active' : ''}`}
+            >
+              <div className="logo">
+                <FaShoppingBag />
+                <span>Pedidos</span>
               </div>
             </Link>
 
-            <Link to="/categorias" className={`menu-item ${location.pathname === '/categorias' ? 'active' : ''}`}>
-              <div className='logo'>     
-                <FaTags /> 
-                <span> Categorias </span>
+            <Link
+              to="/categorias"
+              className={`menu-item ${location.pathname === '/categorias' ? 'active' : ''}`}
+            >
+              <div className="logo">
+                <FaTags />
+                <span>Categorias</span>
               </div>
             </Link>
 
-            <Link to="/relatorios" className={`menu-item ${location.pathname === '/relatorios' ? 'active' : ''}`}>
-              <div className='logo'>     
-                <FaChartBar /> 
-                <span> Relatórios </span>
+            <Link
+              to="/relatorios"
+              className={`menu-item ${location.pathname === '/relatorios' ? 'active' : ''}`}
+            >
+              <div className="logo">
+                <FaChartBar />
+                <span>Relatórios</span>
               </div>
             </Link>
+
           </nav>
         </div>
 
-        {/* USUÁRIO NO CANTO INFERIOR ESQUERDO DA TELA */}
+        {/* USUÁRIO LOGADO */}
         <div className="sidebar-user" style={styles.sidebarUser}>
           <div className="avatar-circle" style={styles.avatarCircle}>
-            {obterIniciais(usuarioLogado?.nome || usuarioLogado?.name)}
+            {obterIniciais(usuarioLogado.nome || usuarioLogado.name)}
           </div>
+
           <div className="user-info" style={styles.userInfo}>
             <div className="user-name" style={styles.userName}>
-              {usuarioLogado?.nome || usuarioLogado?.name || 'Administrador'}
+              {usuarioLogado.nome || usuarioLogado.name || 'Administrador'}
             </div>
+
             <div className="user-status" style={styles.userEmail}>
-              {usuarioLogado?.email || 'admin@admin.com'}
+              {usuarioLogado.email}
             </div>
           </div>
         </div>
       </aside>
 
-      {/* 2. CONTEÚDO PRINCIPAL */}
+      {/* CONTEÚDO PRINCIPAL */}
       <main className="main-content">
+
         <header style={styles.topbar}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <h1 style={styles.topbarTitle}>
@@ -191,105 +293,209 @@ function App() {
             </h1>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <Link 
-              to="/loja" 
-              target="_blank" 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px'
+          }}>
+
+            <Link
+              to="/loja"
+              target="_blank"
               style={styles.storeBtn}
             >
-              <FaStore style={{ fontSize: '16px', color: '#2563eb' }} />
+              <FaStore style={{
+                fontSize: '16px',
+                color: '#2563eb'
+              }} />
+
               <span>Vitrine da Loja</span>
             </Link>
-            
-            <button 
-              onClick={handleLogout} 
-              className="icon-btn" 
-              title="Sair do Sistema" 
+
+            <button
+              onClick={handleLogout}
+              className="icon-btn"
+              title="Sair do Sistema"
               style={styles.logoutBtn}
             >
               ⏻
             </button>
+
           </div>
         </header>
 
         <div className="content-area">
+
           {location.pathname !== '/' ? (
             <Outlet />
           ) : (
             <>
-              <div className="page-header" style={{ marginBottom: '20px' }}>
+
+              <div
+                className="page-header"
+                style={{ marginBottom: '20px' }}
+              >
                 <div>
-                  <h2 style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'Montserrat, sans-serif', color: '#0f172a', margin: 0, textTransform: 'uppercase' }}>
-                    OLÁ, {usuarioLogado?.nome ? usuarioLogado.nome.split(' ')[0] : usuarioLogado?.name ? usuarioLogado.name.split(' ')[0] : 'ADMINISTRADOR'} 👋
+                  <h2 style={{
+                    fontSize: '22px',
+                    fontWeight: '800',
+                    fontFamily: 'Montserrat, sans-serif',
+                    color: '#0f172a',
+                    margin: 0,
+                    textTransform: 'uppercase'
+                  }}>
+                    OLÁ, {
+                      usuarioLogado.nome
+                        ? usuarioLogado.nome.split(' ')[0]
+                        : 'ADMINISTRADOR'
+                    } 👋
                   </h2>
-                  <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0 0' }}>
+
+                  <p style={{
+                    color: '#64748b',
+                    fontSize: '14px',
+                    margin: '4px 0 0 0'
+                  }}>
                     Acompanhe em tempo real as métricas e clientes do seu e-commerce.
                   </p>
                 </div>
               </div>
 
+              {/* CARDS DO DASHBOARD */}
               <div style={styles.cardsContainer}>
+
                 <div style={styles.card}>
                   <div style={styles.cardHeader}>
                     <span style={styles.cardTitle}>Total de Vendas</span>
-                    <div style={{ ...styles.iconBadge, backgroundColor: '#dcfce7' }}>
-                      <FaDollarSign style={{ color: '#16a34a', fontSize: '18px' }} />
+
+                    <div style={{
+                      ...styles.iconBadge,
+                      backgroundColor: '#dcfce7'
+                    }}>
+                      <FaDollarSign style={{
+                        color: '#16a34a',
+                        fontSize: '18px'
+                      }} />
                     </div>
                   </div>
+
                   <h3 style={styles.cardValue}>
-                    R$ {totalVendas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    R$ {totalVendas.toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
                   </h3>
+
                   <p style={styles.cardSubtitle}>
-                    {pedidos.length > 0 ? `${pedidos.length} pedido(s) registrado(s)` : 'Nenhuma venda registrada'}
+                    {pedidos.length > 0
+                      ? `${pedidos.length} pedido(s) registrado(s)`
+                      : 'Nenhuma venda registrada'}
                   </p>
                 </div>
 
                 <div style={styles.card}>
                   <div style={styles.cardHeader}>
                     <span style={styles.cardTitle}>Pedidos Pendentes</span>
-                    <div style={{ ...styles.iconBadge, backgroundColor: '#fef3c7' }}>
-                      <FaShoppingBag style={{ color: '#d97706', fontSize: '18px' }} />
+
+                    <div style={{
+                      ...styles.iconBadge,
+                      backgroundColor: '#fef3c7'
+                    }}>
+                      <FaShoppingBag style={{
+                        color: '#d97706',
+                        fontSize: '18px'
+                      }} />
                     </div>
                   </div>
-                  <h3 style={styles.cardValue}>{pedidosPendentes}</h3>
-                  <p style={styles.cardSubtitle}>Aguardando confirmação</p>
+
+                  <h3 style={styles.cardValue}>
+                    {pedidosPendentes}
+                  </h3>
+
+                  <p style={styles.cardSubtitle}>
+                    Aguardando confirmação
+                  </p>
                 </div>
 
                 <div style={styles.card}>
                   <div style={styles.cardHeader}>
                     <span style={styles.cardTitle}>Clientes Ativos</span>
-                    <div style={{ ...styles.iconBadge, backgroundColor: '#dbeafe' }}>
-                      <FaUsers style={{ color: '#2563eb', fontSize: '18px' }} />
+
+                    <div style={{
+                      ...styles.iconBadge,
+                      backgroundColor: '#dbeafe'
+                    }}>
+                      <FaUsers style={{
+                        color: '#2563eb',
+                        fontSize: '18px'
+                      }} />
                     </div>
                   </div>
-                  <h3 style={styles.cardValue}>{clientes.length}</h3>
-                  <p style={styles.cardSubtitle}>Cadastrados no sistema</p>
+
+                  <h3 style={styles.cardValue}>
+                    {clientes.length}
+                  </h3>
+
+                  <p style={styles.cardSubtitle}>
+                    Cadastrados no sistema
+                  </p>
                 </div>
 
                 <div style={styles.card}>
                   <div style={styles.cardHeader}>
                     <span style={styles.cardTitle}>Catálogo</span>
-                    <div style={{ ...styles.iconBadge, backgroundColor: '#f3e8ff' }}>
-                      <FaBoxOpen style={{ color: '#9333ea', fontSize: '18px' }} />
+
+                    <div style={{
+                      ...styles.iconBadge,
+                      backgroundColor: '#f3e8ff'
+                    }}>
+                      <FaBoxOpen style={{
+                        color: '#9333ea',
+                        fontSize: '18px'
+                      }} />
                     </div>
                   </div>
-                  <h3 style={styles.cardValue}>{produtos.length}</h3>
-                  <p style={styles.cardSubtitle}>Produtos cadastrados</p>
+
+                  <h3 style={styles.cardValue}>
+                    {produtos.length}
+                  </h3>
+
+                  <p style={styles.cardSubtitle}>
+                    Produtos cadastrados
+                  </p>
                 </div>
+
               </div>
 
-              {erro && <p className="error-message">{erro}</p>}
+              {erro && (
+                <p className="error-message">
+                  {erro}
+                </p>
+              )}
 
+              {/* TABELA DE CLIENTES */}
               <div style={styles.tableCard}>
-                <h3 style={{ margin: '0 0 15px 0', color: '#0f172a', fontSize: '16px', fontWeight: '800', fontFamily: 'Montserrat, sans-serif', textTransform: 'uppercase' }}>
+
+                <h3 style={{
+                  margin: '0 0 15px 0',
+                  color: '#0f172a',
+                  fontSize: '16px',
+                  fontWeight: '800',
+                  fontFamily: 'Montserrat, sans-serif',
+                  textTransform: 'uppercase'
+                }}>
                   ÚLTIMOS CLIENTES CADASTRADOS
                 </h3>
 
                 <div style={styles.searchBox}>
-                  <FaSearch style={{ color: '#94a3b8', marginRight: '10px' }} />
-                  <input 
-                    type="text" 
-                    placeholder="Buscar cliente por nome ou email..." 
+                  <FaSearch style={{
+                    color: '#94a3b8',
+                    marginRight: '10px'
+                  }} />
+
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente por nome ou email..."
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
                     style={styles.searchInput}
@@ -297,36 +503,78 @@ function App() {
                 </div>
 
                 {loading ? (
-                  <p style={{ textAlign: 'center', color: '#64748b', padding: '20px' }}>Buscando dados no banco...</p>
+                  <p style={{
+                    textAlign: 'center',
+                    color: '#64748b',
+                    padding: '20px'
+                  }}>
+                    Buscando dados no banco...
+                  </p>
                 ) : clientesFiltrados.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#64748b', padding: '20px' }}>
-                    {busca ? 'Nenhum cliente encontrado com esse termo.' : 'Nenhum cliente cadastrado até o momento.'}
+                  <p style={{
+                    textAlign: 'center',
+                    color: '#64748b',
+                    padding: '20px'
+                  }}>
+                    {busca
+                      ? 'Nenhum cliente encontrado com esse termo.'
+                      : 'Nenhum cliente cadastrado até o momento.'}
                   </p>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <table style={{
+                    width: '100%',
+                    borderCollapse: 'collapse'
+                  }}>
                     <thead>
-                      <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left' }}>
+                      <tr style={{
+                        borderBottom: '2px solid #f1f5f9',
+                        textAlign: 'left'
+                      }}>
                         <th style={styles.th}>NOME</th>
                         <th style={styles.th}>EMAIL</th>
                         <th style={styles.th}>PERFIL</th>
                       </tr>
                     </thead>
+
                     <tbody>
                       {clientesFiltrados.map(cliente => (
-                        <tr key={cliente.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ ...styles.td, fontWeight: '600', color: '#1e293b' }}>{cliente.nome || cliente.name}</td>
-                          <td style={{ ...styles.td, color: '#475569' }}>{cliente.email}</td>
+                        <tr
+                          key={cliente.id}
+                          style={{
+                            borderBottom: '1px solid #f1f5f9'
+                          }}
+                        >
+                          <td style={{
+                            ...styles.td,
+                            fontWeight: '600',
+                            color: '#1e293b'
+                          }}>
+                            {cliente.nome || cliente.name}
+                          </td>
+
+                          <td style={{
+                            ...styles.td,
+                            color: '#475569'
+                          }}>
+                            {cliente.email}
+                          </td>
+
                           <td style={styles.td}>
-                            <span style={styles.roleBadge}>{cliente.role || 'CLIENT'}</span>
+                            <span style={styles.roleBadge}>
+                              {cliente.role || 'CLIENT'}
+                            </span>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 )}
+
               </div>
+
             </>
           )}
+
         </div>
       </main>
     </div>
@@ -340,6 +588,7 @@ const styles = {
     justifyContent: 'space-between',
     minHeight: '100vh'
   },
+
   sidebarUser: {
     display: 'flex',
     alignItems: 'center',
@@ -348,6 +597,7 @@ const styles = {
     borderTop: '1px solid rgba(255, 255, 255, 0.1)',
     marginTop: 'auto'
   },
+
   avatarCircle: {
     width: '38px',
     height: '38px',
@@ -361,9 +611,11 @@ const styles = {
     fontSize: '14px',
     flexShrink: 0
   },
+
   userInfo: {
     overflow: 'hidden'
   },
+
   userName: {
     color: '#ffffff',
     fontSize: '14px',
@@ -372,6 +624,7 @@ const styles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis'
   },
+
   userEmail: {
     color: '#94a3b8',
     fontSize: '12px',
@@ -379,6 +632,7 @@ const styles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis'
   },
+
   topbar: {
     background: '#ffffff',
     borderBottom: '2px solid #e2e8f0',
@@ -388,6 +642,7 @@ const styles = {
     justifyContent: 'space-between',
     boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
   },
+
   topbarTitle: {
     color: '#0f172a',
     fontFamily: 'Montserrat, sans-serif',
@@ -397,6 +652,7 @@ const styles = {
     letterSpacing: '0.5px',
     textTransform: 'uppercase'
   },
+
   storeBtn: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -411,6 +667,7 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer'
   },
+
   logoutBtn: {
     background: 'transparent',
     color: '#ef4444',
@@ -420,12 +677,14 @@ const styles = {
     cursor: 'pointer',
     fontSize: '16px'
   },
+
   cardsContainer: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
     gap: '20px',
     marginBottom: '25px'
   },
+
   card: {
     background: '#ffffff',
     padding: '20px',
@@ -433,12 +692,14 @@ const styles = {
     boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
     border: '1px solid #e2e8f0'
   },
+
   cardHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '12px'
   },
+
   cardTitle: {
     fontSize: '12px',
     fontWeight: '700',
@@ -446,6 +707,7 @@ const styles = {
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
   },
+
   iconBadge: {
     width: '36px',
     height: '36px',
@@ -454,17 +716,20 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center'
   },
+
   cardValue: {
     fontSize: '26px',
     fontWeight: '800',
     margin: '4px 0',
     color: '#0f172a'
   },
+
   cardSubtitle: {
     fontSize: '12px',
     color: '#94a3b8',
     margin: 0
   },
+
   tableCard: {
     background: '#ffffff',
     padding: '24px',
@@ -473,6 +738,7 @@ const styles = {
     border: '1px solid #e2e8f0',
     marginTop: '20px'
   },
+
   searchBox: {
     display: 'flex',
     alignItems: 'center',
@@ -482,6 +748,7 @@ const styles = {
     borderRadius: '8px',
     marginBottom: '20px'
   },
+
   searchInput: {
     border: 'none',
     background: 'transparent',
@@ -490,6 +757,7 @@ const styles = {
     fontSize: '14px',
     color: '#1e293b'
   },
+
   th: {
     padding: '12px 16px',
     fontSize: '12px',
@@ -497,10 +765,12 @@ const styles = {
     color: '#64748b',
     letterSpacing: '0.5px'
   },
+
   td: {
     padding: '14px 16px',
     fontSize: '14px'
   },
+
   roleBadge: {
     background: '#dbeafe',
     color: '#1d4ed8',
@@ -513,5 +783,3 @@ const styles = {
 };
 
 export default App;
-
-  

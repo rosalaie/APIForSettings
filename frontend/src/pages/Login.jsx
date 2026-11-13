@@ -23,28 +23,47 @@ export default function Login() {
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), senha })
+        body: JSON.stringify({
+          email: email.trim(),
+          senha
+        })
       });
 
       const data = await response.json();
 
-      if (response.ok) {
-        if (data.user && data.user.role !== 'ADMIN') {
-          alert('Acesso negado: Este painel é restrito para a administração do sistema. Clientes devem utilizar a vitrine da loja.');
-          return;
-        }
-
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        alert(`Bem-vinda de volta, ${data.user.nome || 'Administradora'}!`);
-        navigate('/dashboard');
-      } else {
+      if (!response.ok) {
         alert(data.error || 'Credenciais inválidas. Verifique o e-mail e a senha.');
+        return;
       }
+
+      // Verifica se o backend retornou os dados necessários
+      if (!data.user || !data.token) {
+        alert('Não foi possível concluir o login. Tente novamente.');
+        return;
+      }
+
+      // Verifica o tipo de usuário
+      if (data.user.role !== 'ADMIN' && data.user.role !== 'CLIENT') {
+        alert('Perfil de usuário não autorizado.');
+        return;
+      }
+
+      // Salva os dados de autenticação
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      // Redireciona conforme o perfil
+      if (data.user.role === 'ADMIN') {
+        alert(`Bem-vinda de volta, ${data.user.nome || 'Administradora'}!`);
+        navigate('/categorias');
+      } else {
+        alert(`Bem-vindo(a), ${data.user.nome || 'Cliente'}!`);
+        navigate('/loja');
+      }
+
     } catch (err) {
-      console.error(err);
-      alert('Erro de conexão ao tentar fazer login. Verifique se o backend está rodando.');
+      console.error('Erro ao realizar login:', err);
+      alert('Erro de conexão ao tentar fazer login. Verifique se o backend está disponível.');
     } finally {
       setLoading(false);
     }
@@ -68,37 +87,110 @@ export default function Login() {
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
       }}>
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a', margin: 0 }}>SOBMDIDA</h2>
-          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '6px' }}>Painel Administrativo de Gestão</p>
+          <h2 style={{
+            fontSize: '26px',
+            fontWeight: '800',
+            color: '#0f172a',
+            margin: 0
+          }}>
+            SOBMDIDA
+          </h2>
+
+          <p style={{
+            color: '#64748b',
+            fontSize: '14px',
+            marginTop: '6px'
+          }}>
+            Acesse sua conta
+          </p>
         </div>
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <form
+          onSubmit={handleLogin}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px'
+          }}
+        >
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>E-mail Administrativo</label>
-            <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 14px' }}>
-              <FaEnvelope style={{ color: '#94a3b8', marginRight: '10px' }} />
+            <label style={{
+              display: 'block',
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#334155',
+              marginBottom: '6px'
+            }}>
+              E-mail
+            </label>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              borderRadius: '8px',
+              padding: '10px 14px'
+            }}>
+              <FaEnvelope style={{
+                color: '#94a3b8',
+                marginRight: '10px'
+              }} />
+
               <input
                 type="email"
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="michele@sobmedida.com"
-                style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
+                placeholder="seuemail@exemplo.com"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  outline: 'none',
+                  width: '100%',
+                  fontSize: '14px'
+                }}
               />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>Senha</label>
-            <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 14px' }}>
-              <FaLock style={{ color: '#94a3b8', marginRight: '10px' }} />
+            <label style={{
+              display: 'block',
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#334155',
+              marginBottom: '6px'
+            }}>
+              Senha
+            </label>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              borderRadius: '8px',
+              padding: '10px 14px'
+            }}>
+              <FaLock style={{
+                color: '#94a3b8',
+                marginRight: '10px'
+              }} />
+
               <input
                 type="password"
                 required
                 value={senha}
                 onChange={e => setSenha(e.target.value)}
                 placeholder="••••••••"
-                style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  outline: 'none',
+                  width: '100%',
+                  fontSize: '14px'
+                }}
               />
             </div>
           </div>
@@ -122,7 +214,8 @@ export default function Login() {
               gap: '8px'
             }}
           >
-            <FaSignInAlt /> {loading ? 'Entrando...' : 'Acessar Sistema'}
+            <FaSignInAlt />
+            {loading ? 'Entrando...' : 'Acessar Sistema'}
           </button>
         </form>
       </div>

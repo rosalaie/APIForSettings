@@ -45,11 +45,15 @@ export default function Register() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || data.message || 'Erro ao realizar cadastro.');
+        throw new Error(
+          data.error || data.message || 'Erro ao realizar cadastro.'
+        );
       }
 
-      alert('Conta criada com sucesso! Você já pode navegar e fazer seus pedidos.');
-      navigate('/');
+      alert('Conta criada com sucesso! Agora faça login para acessar a loja.');
+
+      navigate('/login');
+
     } catch (error) {
       setErro(error.message);
     } finally {

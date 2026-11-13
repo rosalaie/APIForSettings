@@ -11,6 +11,24 @@ const API_URL = import.meta.env.VITE_API_URL ||
     ? 'http://localhost:3000'
     : 'https://sobmdidaadmin.onrender.com');
 
+// Obtém o token JWT salvo durante o login.
+const obterToken = () => localStorage.getItem('token');
+
+// Monta os cabeçalhos das requisições administrativas.
+const obterHeadersAutenticados = (incluirJson = true) => {
+  const token = obterToken();
+
+  const headers = {
+    Authorization: 'Bearer ' + token
+  };
+
+  if (incluirJson) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  return headers;
+};
+
 // Extrai uma mensagem de erro retornada pelo backend.
 const obterMensagemErro = async (res) => {
   try {
@@ -32,6 +50,18 @@ const extrairLista = (data, propriedades = []) => {
   }
 
   return [];
+};
+
+// Converte o status exibido na interface para o valor aceito pelo Prisma.
+const converterStatusParaAPI = (status) => {
+  if (status === 'PEDIDO FEITO') return 'PENDENTE';
+  return status;
+};
+
+// Converte o status do banco para o texto utilizado na interface.
+const converterStatusParaTela = (status) => {
+  if (status === 'PENDENTE') return 'PEDIDO FEITO';
+  return status || 'PEDIDO FEITO';
 };
 
 export default function Pedidos() {
@@ -96,18 +126,33 @@ export default function Pedidos() {
 
   // Carrega pedidos, clientes e produtos.
   const carregarDados = async () => {
+    const token = obterToken();
+
+    if (!token) {
+      alert('Sua sessão não foi encontrada. Faça login novamente.');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
       const [resPedidos, resClientes, resProdutos] = await Promise.all([
-        fetch(`${API_URL}/orders`).catch(err => {
+        fetch(`${API_URL}/orders`, {
+          headers: obterHeadersAutenticados(false)
+        }).catch(err => {
           console.error('Erro de conexão ao buscar pedidos:', err);
           return null;
         }),
-        fetch(`${API_URL}/clients`).catch(err => {
+
+        fetch(`${API_URL}/clients`, {
+          headers: obterHeadersAutenticados(false)
+        }).catch(err => {
           console.error('Erro de conexão ao buscar clientes:', err);
           return null;
         }),
+
+        // Produtos continuam públicos no backend.
         fetch(`${API_URL}/products`).catch(err => {
           console.error('Erro de conexão ao buscar produtos:', err);
           return null;
@@ -118,10 +163,13 @@ export default function Pedidos() {
         const data = await resPedidos.json();
         setPedidos(extrairLista(data, ['orders', 'pedidos']));
       } else if (resPedidos) {
-        console.error(
-          'Erro ao carregar pedidos:',
-          await obterMensagemErro(resPedidos)
-        );
+        const mensagem = await obterMensagemErro(resPedidos);
+        console.error('Erro ao carregar pedidos:', mensagem);
+
+        if (resPedidos.status === 401 || resPedidos.status === 403) {
+          alert('Sua sessão expirou ou você não tem permissão. Faça login novamente.');
+        }
+
         setPedidos([]);
       } else {
         setPedidos([]);
@@ -131,10 +179,13 @@ export default function Pedidos() {
         const data = await resClientes.json();
         setClientes(extrairLista(data, ['clients', 'clientes', 'users']));
       } else if (resClientes) {
-        console.error(
-          'Erro ao carregar clientes:',
-          await obterMensagemErro(resClientes)
-        );
+        const mensagem = await obterMensagemErro(resClientes);
+        console.error('Erro ao carregar clientes:', mensagem);
+
+        if (resClientes.status === 401 || resClientes.status === 403) {
+          alert('Não foi possível acessar os clientes. Verifique sua sessão.');
+        }
+
         setClientes([]);
       } else {
         setClientes([]);
@@ -208,18 +259,16 @@ export default function Pedidos() {
     );
 
     setOrigem(p.origem || 'BALCAO');
-
-    const statusValido = p.status === 'PAGO'
-      ? 'PEDIDO FEITO'
-      : (p.status || 'PEDIDO FEITO');
-
-    setStatus(statusValido);
+    setStatus(converterStatusParaTela(p.status));
     setObservacoes(p.observacoes || '');
 
     if (Array.isArray(p.itens) && p.itens.length > 0) {
       const itensMapeados = p.itens.map(item => {
         const precoUnit = parseFloat(
-          item.preco || item.produto?.preco || 0
+          item.precoUnit ??
+          item.preco ??
+          item.produto?.preco ??
+          0
         );
 
         const qtd = parseInt(item.quantidade || 1, 10);
@@ -241,7 +290,7 @@ export default function Pedidos() {
     setModalAberto(true);
   };
 
-  // Cadastro rápido de cliente.
+  // Cadastro rápido de cliente pelo painel administrativo.
   const salvarNovoClienteRapido = async (e) => {
     e.preventDefault();
 
@@ -250,10 +299,17 @@ export default function Pedidos() {
       return;
     }
 
+    const token = obterToken();
+
+    if (!token) {
+      alert('Sua sessão expirou. Faça login novamente.');
+      return;
+    }
+
     try {
-      const res = await fetch(`${API_URL}/register`, {
+      const res = await fetch(`${API_URL}/clients`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: obterHeadersAutenticados(),
         body: JSON.stringify({
           nome: novoClienteNome.trim(),
           telefone: novoClienteTelefone.trim() || null,
@@ -264,33 +320,36 @@ export default function Pedidos() {
       if (!res.ok) {
         const mensagem = await obterMensagemErro(res);
         alert(`Erro ao cadastrar cliente (${res.status}): ${mensagem}`);
+
+        if (res.status === 401 || res.status === 403) {
+          alert('Verifique se você está conectado como administrador.');
+        }
+
         return;
       }
 
       const data = await res.json();
 
-      const clienteCriado = data.client || data.cliente || data.user || data;
-      const idCriado = clienteCriado.id;
+      const idCriado = data.id || data.cliente?.id || data.client?.id;
 
-      alert('Cliente cadastrado com sucesso!');
+      const nomeCliente = novoClienteNome.trim();
+      const telefoneCliente = novoClienteTelefone.trim();
 
       setNovoClienteNome('');
       setNovoClienteTelefone('');
       setModalClienteAberto(false);
 
-      await carregarDados();
-
       if (idCriado) {
         setClienteId(String(idCriado));
-
         setBuscaClienteTexto(
-          `${clienteCriado.nome || novoClienteNome.trim()} ${
-            clienteCriado.telefone || novoClienteTelefone
-              ? `(${clienteCriado.telefone || novoClienteTelefone})`
-              : ''
-          }`
+          `${nomeCliente}${telefoneCliente ? ` (${telefoneCliente})` : ''}`
         );
+        setMostrarDropdownCliente(false);
       }
+
+      await carregarDados();
+
+      alert('Cliente cadastrado com sucesso!');
     } catch (err) {
       console.error('Erro ao cadastrar cliente:', err);
       alert('Erro de conexão ao cadastrar cliente.');
@@ -374,12 +433,20 @@ export default function Pedidos() {
       return;
     }
 
+    const token = obterToken();
+
+    if (!token) {
+      alert('Sua sessão expirou. Faça login novamente.');
+      return;
+    }
+
     const isEdicao = pedidoEditandoId !== null;
+    const statusAPI = converterStatusParaAPI(status);
 
     const payload = {
       clienteId: parseInt(clienteId, 10),
       origem,
-      status,
+      status: statusAPI,
       observacoes: observacoes || null,
       total: calcularTotal(),
       itens: itensPedido.map(item => ({
@@ -394,13 +461,13 @@ export default function Pedidos() {
       if (isEdicao) {
         res = await fetch(`${API_URL}/orders/${pedidoEditandoId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: obterHeadersAutenticados(),
           body: JSON.stringify(payload)
         });
       } else {
         res = await fetch(`${API_URL}/orders`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: obterHeadersAutenticados(),
           body: JSON.stringify(payload)
         });
       }
@@ -408,7 +475,48 @@ export default function Pedidos() {
       if (!res.ok) {
         const mensagem = await obterMensagemErro(res);
         alert(`Erro ao salvar pedido (${res.status}): ${mensagem}`);
+
+        if (res.status === 401 || res.status === 403) {
+          alert('Verifique sua sessão e suas permissões de administrador.');
+        }
+
         return;
+      }
+
+      // A rota POST /orders cria inicialmente como PENDENTE.
+      // Se outro status foi selecionado, atualizamos em seguida.
+      if (!isEdicao && statusAPI !== 'PENDENTE') {
+        const pedidoCriado = await res.json();
+        const idCriado = pedidoCriado.id || pedidoCriado.pedido?.id;
+
+        if (!idCriado) {
+          alert('Pedido criado, mas não foi possível identificar seu ID para atualizar o status.');
+          setModalAberto(false);
+          limparFormulario();
+          await carregarDados();
+          return;
+        }
+
+        const resStatus = await fetch(
+          `${API_URL}/orders/${idCriado}/status`,
+          {
+            method: 'PATCH',
+            headers: obterHeadersAutenticados(),
+            body: JSON.stringify({ status: statusAPI })
+          }
+        );
+
+        if (!resStatus.ok) {
+          const mensagem = await obterMensagemErro(resStatus);
+          alert(
+            `O pedido foi criado, mas não foi possível atualizar o status: ${mensagem}`
+          );
+
+          setModalAberto(false);
+          limparFormulario();
+          await carregarDados();
+          return;
+        }
       }
 
       alert(
@@ -428,11 +536,20 @@ export default function Pedidos() {
 
   // Atualiza somente o status do pedido.
   const atualizarStatusPedido = async (id, novoStatus) => {
+    const token = obterToken();
+
+    if (!token) {
+      alert('Sua sessão expirou. Faça login novamente.');
+      return;
+    }
+
+    const statusAPI = converterStatusParaAPI(novoStatus);
+
     try {
       const res = await fetch(`${API_URL}/orders/${id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: novoStatus })
+        headers: obterHeadersAutenticados(),
+        body: JSON.stringify({ status: statusAPI })
       });
 
       if (!res.ok) {
@@ -444,7 +561,7 @@ export default function Pedidos() {
       setPedidos(prev =>
         prev.map(p =>
           String(p.id) === String(id)
-            ? { ...p, status: novoStatus }
+            ? { ...p, status: statusAPI }
             : p
         )
       );
@@ -460,9 +577,17 @@ export default function Pedidos() {
       return;
     }
 
+    const token = obterToken();
+
+    if (!token) {
+      alert('Sua sessão expirou. Faça login novamente.');
+      return;
+    }
+
     try {
       const res = await fetch(`${API_URL}/orders/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: obterHeadersAutenticados(false)
       });
 
       if (!res.ok) {
@@ -491,20 +616,14 @@ export default function Pedidos() {
       nomeCliente.includes(termo) ||
       String(p.id).includes(termo);
 
-    const stAtual = (
-      p.status === 'PAGO'
-        ? 'PEDIDO FEITO'
-        : (p.status || 'PEDIDO FEITO')
-    ).toUpperCase();
+    const stAtual = converterStatusParaTela(p.status).toUpperCase();
 
     let passaStatus = true;
 
     if (filtroStatus === 'PENDENTES') {
-      passaStatus =
-        stAtual === 'PEDIDO FEITO' ||
-        stAtual === 'PENDENTE';
+      passaStatus = stAtual === 'PEDIDO FEITO';
     } else if (filtroStatus !== 'TODOS') {
-      passaStatus = stAtual === filtroStatus;
+      passaStatus = p.status === filtroStatus;
     }
 
     return passaTexto && passaStatus;
@@ -723,6 +842,7 @@ export default function Pedidos() {
             >
               <option value="PENDENTES">Apenas Pendentes (Pedido Feito)</option>
               <option value="TODOS">Todos os Status</option>
+              <option value="PAGO">Pagos</option>
               <option value="EM_PREPARACAO">Em Preparação</option>
               <option value="ENVIADO">Enviados</option>
               <option value="ENTREGUE">Entregues</option>
@@ -782,9 +902,7 @@ export default function Pedidos() {
                   </tr>
                 ) : (
                   pedidosPaginados.map(p => {
-                    const statusAtual = p.status === 'PAGO'
-                      ? 'PEDIDO FEITO'
-                      : (p.status || 'PEDIDO FEITO');
+                    const statusAtual = converterStatusParaTela(p.status);
 
                     return (
                       <tr
@@ -842,14 +960,19 @@ export default function Pedidos() {
                               border: '1px solid #cbd5e1',
                               background: statusAtual === 'ENTREGUE'
                                 ? '#dcfce7'
-                                : '#fef3c7',
+                                : statusAtual === 'CANCELADO'
+                                  ? '#fee2e2'
+                                  : '#fef3c7',
                               color: statusAtual === 'ENTREGUE'
                                 ? '#166534'
-                                : '#92400e',
+                                : statusAtual === 'CANCELADO'
+                                  ? '#991b1b'
+                                  : '#92400e',
                               cursor: 'pointer'
                             }}
                           >
                             <option value="PEDIDO FEITO">PEDIDO FEITO</option>
+                            <option value="PAGO">PAGO</option>
                             <option value="EM_PREPARACAO">EM_PREPARACAO</option>
                             <option value="ENVIADO">ENVIADO</option>
                             <option value="ENTREGUE">ENTREGUE</option>
@@ -1219,6 +1342,7 @@ export default function Pedidos() {
                     style={{ ...inputStyle, cursor: 'pointer' }}
                   >
                     <option value="PEDIDO FEITO">PEDIDO FEITO</option>
+                    <option value="PAGO">PAGO</option>
                     <option value="EM_PREPARACAO">EM_PREPARACAO</option>
                     <option value="ENVIADO">ENVIADO</option>
                     <option value="ENTREGUE">ENTREGUE</option>

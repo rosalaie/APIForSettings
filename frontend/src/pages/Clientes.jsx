@@ -17,6 +17,23 @@ const API_URL = import.meta.env.VITE_API_URL ||
     ? 'http://localhost:3000'
     : 'https://sobmdidaadmin.onrender.com');
 
+// Recupera o token da sessão.
+const obterToken = () => localStorage.getItem('token');
+
+// Monta os cabeçalhos das requisições autenticadas.
+const obterHeaders = (comJson = false) => {
+  const token = obterToken();
+
+  if (!token) {
+    throw new Error('Sua sessão não foi encontrada. Faça login novamente.');
+  }
+
+  return {
+    ...(comJson ? { 'Content-Type': 'application/json' } : {}),
+    Authorization: `Bearer ${token}`
+  };
+};
+
 // Extrai uma mensagem de erro da resposta do backend.
 const obterMensagemErro = async (res) => {
   try {
@@ -25,6 +42,21 @@ const obterMensagemErro = async (res) => {
   } catch {
     return `Erro HTTP ${res.status}`;
   }
+};
+
+// Verifica erros de autenticação e autorização.
+const verificarResposta = async (res) => {
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(
+      'Sua sessão expirou ou você não tem autorização. Faça login novamente.'
+    );
+  }
+
+  if (!res.ok) {
+    throw new Error(await obterMensagemErro(res));
+  }
+
+  return res;
 };
 
 export default function Clientes() {
@@ -150,13 +182,11 @@ export default function Clientes() {
     try {
       setLoading(true);
 
-      const res = await fetch(`${API_URL}/clients`);
+      const res = await fetch(`${API_URL}/clients`, {
+        headers: obterHeaders()
+      });
 
-      if (!res.ok) {
-        throw new Error(
-          await obterMensagemErro(res)
-        );
-      }
+      await verificarResposta(res);
 
       const data = await res.json();
 
@@ -299,43 +329,24 @@ export default function Clientes() {
       let res;
 
       if (isEdicao) {
-        // PRIMEIRA TENTATIVA: rota /clients/:id
+        // EDITAR CLIENTE
         res = await fetch(`${API_URL}/clients/${clienteEditandoId}`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: obterHeaders(true),
           body: JSON.stringify(payload)
         });
 
-        // SEGUNDA TENTATIVA: somente se a rota não existir
-        if (res.status === 404 || res.status === 405) {
-          res = await fetch(`${API_URL}/users/${clienteEditandoId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-          });
-        }
-
       } else {
-        // CADASTRAR NOVO CLIENTE
-        res = await fetch(`${API_URL}/register`, {
+        // CADASTRAR NOVO CLIENTE PELO PAINEL ADMINISTRATIVO
+        res = await fetch(`${API_URL}/clients`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: obterHeaders(true),
           body: JSON.stringify(payload)
         });
       }
 
       // VERIFICAR SE O BACKEND CONFIRMOU A OPERAÇÃO
-      if (!res.ok) {
-        const mensagemErro = await obterMensagemErro(res);
-
-        throw new Error(mensagemErro);
-      }
+      await verificarResposta(res);
 
       alert(
         isEdicao
@@ -364,12 +375,11 @@ export default function Clientes() {
 
     try {
       const res = await fetch(`${API_URL}/clients/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: obterHeaders()
       });
 
-      if (!res.ok) {
-        throw new Error(await obterMensagemErro(res));
-      }
+      await verificarResposta(res);
 
       alert('Cliente excluído com sucesso!');
 

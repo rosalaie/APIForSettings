@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { FaWhatsapp, FaSearch, FaBoxOpen } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+import API_URL from '../services/api';
 
 export default function Loja() {
   const [produtos, setProdutos] = useState([]);
@@ -13,17 +14,19 @@ export default function Loja() {
 
   // Trata corretamente a URL sem modificar se já for um link externo (ImgBB)
   const obterUrlImagem = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url; // Link direto do ImgBB
-    }
-    return `http://localhost:3000${url.startsWith('/') ? '' : '/'}${url}`;
-  };
+  if (!url) return null;
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+
+  return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
   async function carregarProdutos() {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3000/products');
+      const res = await fetch(`${API_URL}/products`);
       const data = await res.json();
       setProdutos(Array.isArray(data) ? data : []);
       if (Array.isArray(data) && data.length > 0) {

@@ -1,6 +1,6 @@
-// frontend/src/pages/Relatorios.jsx
 import { useEffect, useState } from 'react';
-import { FaCalendarAlt, FaDollarSign, FaShoppingBag, FaUsers, FaBoxOpen, FaFilter, FaPrint } from 'react-icons/fa';
+import { FaDollarSign, FaShoppingBag, FaUsers, FaFilter, FaPrint } from 'react-icons/fa';
+import API_URL from '../services/api';
 
 export default function Relatorios() {
   const [pedidos, setPedidos] = useState([]);
@@ -8,22 +8,26 @@ export default function Relatorios() {
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Filtros de Data (Inicia com o mês atual)
   const hoje = new Date().toISOString().split('T')[0];
   const primeiroDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
   const [dataInicio, setDataInicio] = useState(primeiroDiaMes);
   const [dataFim, setDataFim] = useState(hoje);
-  const [tipoRelatorio, setTipoRelatorio] = useState('vendas'); // 'vendas' | 'produtos' | 'origem'
+  const [tipoRelatorio, setTipoRelatorio] = useState('vendas');
 
   async function carregarDados() {
     try {
       setLoading(true);
+
       const [resPed, resCli, resProd] = await Promise.all([
-        fetch('http://localhost:3000/orders'),
-        fetch('http://localhost:3000/clients'),
-        fetch('http://localhost:3000/products')
+        fetch(`${API_URL}/orders`),
+        fetch(`${API_URL}/clients`),
+        fetch(`${API_URL}/products`)
       ]);
+
+      if (!resPed.ok || !resCli.ok || !resProd.ok) {
+        throw new Error('Não foi possível carregar todos os dados dos relatórios.');
+      }
 
       setPedidos(await resPed.json());
       setClientes(await resCli.json());
@@ -35,19 +39,19 @@ export default function Relatorios() {
     }
   }
 
-  useEffect(() => { carregarDados(); }, []);
+  useEffect(() => {
+    carregarDados();
+  }, []);
 
-  // Filtragem dos pedidos com base no período de datas selecionado
   const pedidosFiltrados = (Array.isArray(pedidos) ? pedidos : []).filter(p => {
     if (!p.criadoEm) return true;
     const dataPedido = p.criadoEm.split('T')[0];
     return dataPedido >= dataInicio && dataPedido <= dataFim;
   });
 
-  // Métricas Calculadas
-  const totalFaturado = pedidosFiltrados.reduce((acc, p) => acc + (p.total || 0), 0);
-  const vendasBalcao = pedidosFiltrados.filter(p => p.origem === 'BALCAO').reduce((acc, p) => acc + p.total, 0);
-  const vendasSite = pedidosFiltrados.filter(p => p.origem === 'SITE').reduce((acc, p) => acc + p.total, 0);
+  const totalFaturado = pedidosFiltrados.reduce((acc, p) => acc + (Number(p.total) || 0), 0);
+  const vendasBalcao = pedidosFiltrados.filter(p => p.origem === 'BALCAO').reduce((acc, p) => acc + (Number(p.total) || 0), 0);
+  const vendasSite = pedidosFiltrados.filter(p => p.origem === 'SITE').reduce((acc, p) => acc + (Number(p.total) || 0), 0);
 
   return (
     <>
@@ -61,7 +65,6 @@ export default function Relatorios() {
         </button>
       </div>
 
-      {/* PAINEL DE FILTROS POR DATA */}
       <div className="user-list-card" style={{ marginBottom: '20px', padding: '15px 20px' }}>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1e293b', fontWeight: 'bold' }}>
@@ -70,34 +73,23 @@ export default function Relatorios() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <label style={{ fontSize: '13px', color: '#64748b' }}>De:</label>
-            <input 
-              type="date" 
-              className="form-input" 
-              value={dataInicio} 
+            <input type="date" className="form-input" value={dataInicio}
               onChange={e => setDataInicio(e.target.value)}
-              style={{ padding: '6px 10px', fontSize: '13px' }}
-            />
+              style={{ padding: '6px 10px', fontSize: '13px' }} />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <label style={{ fontSize: '13px', color: '#64748b' }}>Até:</label>
-            <input 
-              type="date" 
-              className="form-input" 
-              value={dataFim} 
+            <input type="date" className="form-input" value={dataFim}
               onChange={e => setDataFim(e.target.value)}
-              style={{ padding: '6px 10px', fontSize: '13px' }}
-            />
+              style={{ padding: '6px 10px', fontSize: '13px' }} />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
             <label style={{ fontSize: '13px', color: '#64748b' }}>Visão:</label>
-            <select 
-              className="form-input" 
-              value={tipoRelatorio} 
+            <select className="form-input" value={tipoRelatorio}
               onChange={e => setTipoRelatorio(e.target.value)}
-              style={{ padding: '6px 10px', fontSize: '13px', width: '200px' }}
-            >
+              style={{ padding: '6px 10px', fontSize: '13px', width: '200px' }}>
               <option value="vendas">Listagem de Vendas</option>
               <option value="origem">Comparativo (Balcão vs Site)</option>
             </select>
@@ -105,7 +97,6 @@ export default function Relatorios() {
         </div>
       </div>
 
-      {/* CARDS RESUMO DO PERÍODO */}
       <div className="dashboard-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '20px' }}>
         <div className="card-stat" style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '13px', fontWeight: 'bold' }}>
@@ -150,7 +141,6 @@ export default function Relatorios() {
         </div>
       </div>
 
-      {/* TABELA DO RELATÓRIO SELECIONADO */}
       <div className="user-list-card">
         <h3 style={{ margin: '0 0 15px 0', color: '#1e293b', fontSize: '16px' }}>
           {tipoRelatorio === 'vendas' && 'Detalhamento de Pedidos no Período'}
@@ -200,7 +190,7 @@ export default function Relatorios() {
                     </span>
                   </td>
                   <td style={{ fontWeight: 'bold', color: '#10b981' }}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.total)}
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p.total) || 0)}
                   </td>
                 </tr>
               ))}

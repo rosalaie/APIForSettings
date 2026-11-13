@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaLock, FaEnvelope, FaSignInAlt } from 'react-icons/fa';
+import API_URL from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -19,7 +20,7 @@ export default function Login() {
     try {
       setLoading(true);
 
-      const response = await fetch('http://localhost:3000/login', {
+      const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), senha })
@@ -28,19 +29,15 @@ export default function Login() {
       const data = await response.json();
 
       if (response.ok) {
-        // TRAVA DE SEGURANÇA: Verifica se o utilizador é Administrador
         if (data.user && data.user.role !== 'ADMIN') {
           alert('Acesso negado: Este painel é restrito para a administração do sistema. Clientes devem utilizar a vitrine da loja.');
           return;
         }
 
-        // Salva os dados de sessão no navegador
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
 
         alert(`Bem-vinda de volta, ${data.user.nome || 'Administradora'}!`);
-        
-        // Redireciona para o Painel/Dashboard
         navigate('/dashboard');
       } else {
         alert(data.error || 'Credenciais inválidas. Verifique o e-mail e a senha.');

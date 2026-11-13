@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import API_URL from '../services/api';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/register', {
+      const response = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -48,8 +49,6 @@ export default function Register() {
       }
 
       alert('Conta criada com sucesso! Você já pode navegar e fazer seus pedidos.');
-
-      // Redireciona o cliente para a vitrine da loja ou login
       navigate('/');
     } catch (error) {
       setErro(error.message);
@@ -102,37 +101,37 @@ export default function Register() {
         <form onSubmit={handleRegister}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Nome *</label>
+              <label style={labelStyle}>Nome *</label>
               <input type="text" required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" style={inputStyle} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Sobrenome</label>
+              <label style={labelStyle}>Sobrenome</label>
               <input type="text" value={sobrenome} onChange={(e) => setSobrenome(e.target.value)} placeholder="Seu sobrenome" style={inputStyle} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>E-mail *</label>
+              <label style={labelStyle}>E-mail *</label>
               <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="exemplo@email.com" style={inputStyle} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>CPF *</label>
+              <label style={labelStyle}>CPF *</label>
               <input type="text" required value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" style={inputStyle} />
             </div>
 
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Telefone / WhatsApp *</label>
+              <label style={labelStyle}>Telefone / WhatsApp *</label>
               <input type="tel" required value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" style={inputStyle} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Senha *</label>
+              <label style={labelStyle}>Senha *</label>
               <input type="password" required value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Crie uma senha" style={inputStyle} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Confirmar Senha *</label>
+              <label style={labelStyle}>Confirmar Senha *</label>
               <input type="password" required value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} placeholder="Repita a senha" style={inputStyle} />
             </div>
           </div>
@@ -164,6 +163,14 @@ export default function Register() {
     </div>
   );
 }
+
+const labelStyle = {
+  display: 'block',
+  fontSize: '12px',
+  fontWeight: '600',
+  color: '#334155',
+  marginBottom: '4px'
+};
 
 const inputStyle = {
   width: '100%',

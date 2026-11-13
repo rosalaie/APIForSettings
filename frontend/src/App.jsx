@@ -3,9 +3,10 @@ import React, { useEffect, useState } from 'react';
 //import AppRoutes from './routes/AppRoutes.jsx';
 import { FaStore, FaUsers, FaBoxOpen, FaTags, FaChartBar, FaDollarSign, FaShoppingBag, FaSearch, FaTachometerAlt } from "react-icons/fa";
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import API_URL from './services/api';
 
 // Define a URL base da API (VITE_API_URL ou fallback para o backend local)
-const API_URL = 'http://localhost:3000';
+
 
 function App() {
   const [clientes, setClientes] = useState([]);

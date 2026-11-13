@@ -1,46 +1,50 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import App from '../App.jsx';
+
 import Login from '../pages/Login.jsx';
 import Register from '../pages/Register.jsx';
+
 import Clientes from '../pages/Clientes.jsx';
 import Produtos from '../pages/Produtos.jsx';
 import Categorias from '../pages/Categorias.jsx';
 import Pedidos from '../pages/Pedidos.jsx';
 import Relatorios from '../pages/Relatorios.jsx';
-import Loja from '../pages/Loja.jsx';
 
-// Proteção de rotas conforme o perfil do usuário
+import Loja from '../pages/Loja.jsx';
+import MinhaConta from '../pages/MinhaConta.jsx';
+import MeusPedidos from '../pages/MeusPedidos.jsx';
+import Carrinho from '../pages/Carrinho.jsx';
+
 function RequireRole({ role, children }) {
   const token = localStorage.getItem('token');
-  const userStorage = localStorage.getItem('user');
+  const usuarioSalvo = localStorage.getItem('user');
 
-  if (!token || !userStorage) {
+  if (!token || !usuarioSalvo) {
     return <Navigate to="/login" replace />;
   }
 
-  let user;
+  let usuario;
 
   try {
-    user = JSON.parse(userStorage);
-  } catch (error) {
-    localStorage.removeItem('user');
+    usuario = JSON.parse(usuarioSalvo);
+  } catch (erro) {
+    console.error('Erro ao validar usuário:', erro);
+
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
 
     return <Navigate to="/login" replace />;
   }
 
-  if (user.role !== role) {
-    if (user.role === 'CLIENT') {
+  if (!usuario || usuario.role !== role) {
+    if (usuario?.role === 'CLIENT') {
       return <Navigate to="/loja" replace />;
     }
 
-    if (user.role === 'ADMIN') {
+    if (usuario?.role === 'ADMIN') {
       return <Navigate to="/categorias" replace />;
     }
-
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
 
     return <Navigate to="/login" replace />;
   }
@@ -48,44 +52,12 @@ function RequireRole({ role, children }) {
   return children;
 }
 
-// Área do cliente
-function MinhaContaPlaceholder() {
-  return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'column',
-      fontFamily: 'Arial, sans-serif',
-      background: '#f8fafc'
-    }}>
-      <h1>Minha Conta</h1>
-
-      <p>
-        Estamos preparando sua área de cliente.
-      </p>
-
-      <a
-        href="/loja"
-        style={{
-          color: '#b51f36',
-          textDecoration: 'none',
-          fontWeight: 'bold'
-        }}
-      >
-        Voltar à loja
-      </a>
-    </div>
-  );
-}
-
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
 
-        {/* PAINEL ADMINISTRATIVO */}
+        {/* Área administrativa */}
         <Route
           path="/"
           element={
@@ -103,25 +75,40 @@ export default function AppRoutes() {
           <Route path="relatorios" element={<Relatorios />} />
         </Route>
 
-        {/* LOJA VIRTUAL */}
+        {/* Loja pública */}
         <Route path="/loja" element={<Loja />} />
 
-        {/* ÁREA DO CLIENTE */}
+        {/* Carrinho */}
+        <Route path="/carrinho" element={<Carrinho />} />
+
+        {/* Área do cliente */}
         <Route
           path="/minha-conta"
           element={
             <RequireRole role="CLIENT">
-              <MinhaContaPlaceholder />
+              <MinhaConta />
             </RequireRole>
           }
         />
 
-        {/* AUTENTICAÇÃO */}
+        <Route
+          path="/meus-pedidos"
+          element={
+            <RequireRole role="CLIENT">
+              <MeusPedidos />
+            </RequireRole>
+          }
+        />
+
+        {/* Autenticação */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* ROTAS INEXISTENTES */}
-        <Route path="*" element={<Navigate to="/loja" replace />} />
+        {/* Rota não encontrada */}
+        <Route
+          path="*"
+          element={<Navigate to="/loja" replace />}
+        />
 
       </Routes>
     </BrowserRouter>

@@ -6,67 +6,23 @@ import {
   FaFilter,
   FaPrint
 } from 'react-icons/fa';
+
 import API_URL from '../services/api';
-
-// Recupera o token JWT salvo durante o login.
-const obterToken = () => localStorage.getItem('token');
-
-// Monta os cabeçalhos das requisições administrativas.
-const obterHeadersAutenticados = () => {
-  const token = obterToken();
-
-  return {
-    Authorization: `Bearer ${token}`
-  };
-};
-
-// Extrai uma lista mesmo quando a API retorna um objeto.
-const extrairLista = (data, propriedades = []) => {
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  for (const propriedade of propriedades) {
-    if (Array.isArray(data?.[propriedade])) {
-      return data[propriedade];
-    }
-  }
-
-  return [];
-};
-
-// Gera uma data no formato YYYY-MM-DD usando o horário local.
-const formatarDataLocal = (data) => {
-  const ano = data.getFullYear();
-  const mes = String(data.getMonth() + 1).padStart(2, '0');
-  const dia = String(data.getDate()).padStart(2, '0');
-
-  return `${ano}-${mes}-${dia}`;
-};
-
-// Formata valores monetários.
-const formatarMoeda = (valor) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(Number(valor) || 0);
-};
-
-// Obtém mensagens de erro do backend.
-const obterMensagemErro = async (res) => {
-  try {
-    const data = await res.json();
-    return data.error || data.message || `Erro HTTP ${res.status}`;
-  } catch {
-    return `Erro HTTP ${res.status}`;
-  }
-};
 
 export default function Relatorios() {
   const [pedidos, setPedidos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
+
+  function formatarDataLocal(data) {
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+
+    return `${ano}-${mes}-${dia}`;
+  }
 
   const hoje = formatarDataLocal(new Date());
 
@@ -78,59 +34,61 @@ export default function Relatorios() {
   const [dataFim, setDataFim] = useState(hoje);
   const [tipoRelatorio, setTipoRelatorio] = useState('vendas');
 
-  // Carrega os dados necessários para os relatórios.
-  async function carregarDados() {
-    const token = obterToken();
+  function obterHeadersAutenticados() {
+    const token = localStorage.getItem('token');
 
-    if (!token) {
-      alert('Sua sessão não foi encontrada. Faça login novamente.');
-      setLoading(false);
-      return;
+    return token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
+  }
+
+  function extrairLista(dados, propriedadesPossiveis) {
+    if (Array.isArray(dados)) {
+      return dados;
     }
 
+    if (dados && typeof dados === 'object') {
+      for (const propriedade of propriedadesPossiveis) {
+        if (Array.isArray(dados[propriedade])) {
+          return dados[propriedade];
+        }
+      }
+    }
+
+    return [];
+  }
+
+  async function carregarDados() {
     try {
       setLoading(true);
+      setErro('');
+
+      const headers = obterHeadersAutenticados();
 
       const [resPed, resCli, resProd] = await Promise.all([
-        fetch(`${API_URL}/orders`, {
-          headers: obterHeadersAutenticados()
-        }),
-
-        fetch(`${API_URL}/clients`, {
-          headers: obterHeadersAutenticados()
-        }),
-
-        // Produtos continuam públicos no backend.
+        fetch(`${API_URL}/orders`, { headers }),
+        fetch(`${API_URL}/clients`, { headers }),
         fetch(`${API_URL}/products`)
       ]);
 
       if (!resPed.ok) {
-        const mensagem = await obterMensagemErro(resPed);
-
-        if (resPed.status === 401 || resPed.status === 403) {
-          throw new Error(
-            'Sua sessão expirou ou você não tem permissão para consultar os pedidos. Faça login novamente.'
-          );
-        }
-
-        throw new Error(`Erro ao carregar pedidos: ${mensagem}`);
+        throw new Error(
+          resPed.status === 401 || resPed.status === 403
+            ? 'Não foi possível acessar os pedidos. Verifique sua autenticação.'
+            : 'Não foi possível carregar os pedidos.'
+        );
       }
 
       if (!resCli.ok) {
-        const mensagem = await obterMensagemErro(resCli);
-
-        if (resCli.status === 401 || resCli.status === 403) {
-          throw new Error(
-            'Sua sessão expirou ou você não tem permissão para consultar os clientes. Faça login novamente.'
-          );
-        }
-
-        throw new Error(`Erro ao carregar clientes: ${mensagem}`);
+        throw new Error(
+          resCli.status === 401 || resCli.status === 403
+            ? 'Não foi possível acessar os clientes. Verifique sua autenticação.'
+            : 'Não foi possível carregar os clientes.'
+        );
       }
 
       if (!resProd.ok) {
-        const mensagem = await obterMensagemErro(resProd);
-        throw new Error(`Erro ao carregar produtos: ${mensagem}`);
+        throw new Error('Não foi possível carregar os produtos.');
       }
 
       const [dadosPedidos, dadosClientes, dadosProdutos] =
@@ -155,9 +113,8 @@ export default function Relatorios() {
     } catch (err) {
       console.error('Erro ao buscar dados para relatórios:', err);
 
-      alert(
-        err.message ||
-        'Não foi possível carregar os dados dos relatórios.'
+      setErro(
+        err.message || 'Ocorreu um erro ao carregar os relatórios.'
       );
 
       setPedidos([]);
@@ -173,48 +130,38 @@ export default function Relatorios() {
     carregarDados();
   }, []);
 
-  // Filtra os pedidos pelo intervalo de datas.
   const pedidosFiltrados = pedidos.filter(p => {
-    if (!p.criadoEm) return true;
+    if (!p.criadoEm) return false;
 
     const dataPedido = p.criadoEm.split('T')[0];
 
     return dataPedido >= dataInicio && dataPedido <= dataFim;
   });
 
-  // Calcula o faturamento do período.
   const totalFaturado = pedidosFiltrados.reduce(
     (acc, p) => acc + (Number(p.total) || 0),
     0
   );
 
-  // Calcula as vendas realizadas no balcão.
   const vendasBalcao = pedidosFiltrados
     .filter(p => p.origem === 'BALCAO')
     .reduce((acc, p) => acc + (Number(p.total) || 0), 0);
 
-  // Calcula as vendas realizadas pelo site.
   const vendasSite = pedidosFiltrados
     .filter(p => p.origem === 'SITE')
     .reduce((acc, p) => acc + (Number(p.total) || 0), 0);
 
-  // Quantidade de pedidos por origem.
-  const quantidadeBalcao = pedidosFiltrados.filter(
-    p => p.origem === 'BALCAO'
-  ).length;
-
-  const quantidadeSite = pedidosFiltrados.filter(
-    p => p.origem === 'SITE'
-  ).length;
+  const formatarMoeda = valor =>
+    new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(valor);
 
   return (
     <>
       <div className="page-header">
         <div>
-          <h2 className="page-title">
-            Relatórios e Métricas
-          </h2>
-
+          <h2 className="page-title">Relatórios e Métricas</h2>
           <p className="page-subtitle">
             Analise o desempenho financeiro e comercial do seu negócio.
           </p>
@@ -232,10 +179,7 @@ export default function Relatorios() {
 
       <div
         className="user-list-card"
-        style={{
-          marginBottom: '20px',
-          padding: '15px 20px'
-        }}
+        style={{ marginBottom: '20px', padding: '15px 20px' }}
       >
         <div
           style={{
@@ -265,12 +209,7 @@ export default function Relatorios() {
               gap: '6px'
             }}
           >
-            <label
-              style={{
-                fontSize: '13px',
-                color: '#64748b'
-              }}
-            >
+            <label style={{ fontSize: '13px', color: '#64748b' }}>
               De:
             </label>
 
@@ -278,12 +217,8 @@ export default function Relatorios() {
               type="date"
               className="form-input"
               value={dataInicio}
-              max={dataFim}
               onChange={e => setDataInicio(e.target.value)}
-              style={{
-                padding: '6px 10px',
-                fontSize: '13px'
-              }}
+              style={{ padding: '6px 10px', fontSize: '13px' }}
             />
           </div>
 
@@ -294,12 +229,7 @@ export default function Relatorios() {
               gap: '6px'
             }}
           >
-            <label
-              style={{
-                fontSize: '13px',
-                color: '#64748b'
-              }}
-            >
+            <label style={{ fontSize: '13px', color: '#64748b' }}>
               Até:
             </label>
 
@@ -307,12 +237,8 @@ export default function Relatorios() {
               type="date"
               className="form-input"
               value={dataFim}
-              min={dataInicio}
               onChange={e => setDataFim(e.target.value)}
-              style={{
-                padding: '6px 10px',
-                fontSize: '13px'
-              }}
+              style={{ padding: '6px 10px', fontSize: '13px' }}
             />
           </div>
 
@@ -324,12 +250,7 @@ export default function Relatorios() {
               marginLeft: 'auto'
             }}
           >
-            <label
-              style={{
-                fontSize: '13px',
-                color: '#64748b'
-              }}
-            >
+            <label style={{ fontSize: '13px', color: '#64748b' }}>
               Visão:
             </label>
 
@@ -343,13 +264,8 @@ export default function Relatorios() {
                 width: '200px'
               }}
             >
-              <option value="vendas">
-                Listagem de Vendas
-              </option>
-
-              <option value="origem">
-                Comparativo (Balcão vs Site)
-              </option>
+              <option value="vendas">Listagem de Vendas</option>
+              <option value="origem">Comparativo (Balcão vs Site)</option>
             </select>
           </div>
         </div>
@@ -383,12 +299,8 @@ export default function Relatorios() {
             }}
           >
             Faturamento Período
-
             <FaDollarSign
-              style={{
-                color: '#10b981',
-                fontSize: '18px'
-              }}
+              style={{ color: '#10b981', fontSize: '18px' }}
             />
           </div>
 
@@ -432,12 +344,8 @@ export default function Relatorios() {
             }}
           >
             Vendas no Balcão
-
             <FaShoppingBag
-              style={{
-                color: '#0284c7',
-                fontSize: '18px'
-              }}
+              style={{ color: '#0284c7', fontSize: '18px' }}
             />
           </div>
 
@@ -481,12 +389,8 @@ export default function Relatorios() {
             }}
           >
             Vendas do Site
-
             <FaShoppingBag
-              style={{
-                color: '#8b5cf6',
-                fontSize: '18px'
-              }}
+              style={{ color: '#8b5cf6', fontSize: '18px' }}
             />
           </div>
 
@@ -530,12 +434,8 @@ export default function Relatorios() {
             }}
           >
             Base de Clientes
-
             <FaUsers
-              style={{
-                color: '#ec4899',
-                fontSize: '18px'
-              }}
+              style={{ color: '#ec4899', fontSize: '18px' }}
             />
           </div>
 
@@ -569,9 +469,11 @@ export default function Relatorios() {
             fontSize: '16px'
           }}
         >
-          {tipoRelatorio === 'vendas'
-            ? 'Detalhamento de Pedidos no Período'
-            : 'Análise de Canal de Vendas'}
+          {tipoRelatorio === 'vendas' &&
+            'Detalhamento de Pedidos no Período'}
+
+          {tipoRelatorio === 'origem' &&
+            'Análise de Canal de Vendas'}
         </h3>
 
         {loading ? (
@@ -584,6 +486,24 @@ export default function Relatorios() {
           >
             Gerando relatório...
           </p>
+        ) : erro ? (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '25px',
+              color: '#dc2626'
+            }}
+          >
+            <p>{erro}</p>
+
+            <button
+              className="novo-btn"
+              onClick={carregarDados}
+              style={{ marginTop: '10px' }}
+            >
+              Tentar novamente
+            </button>
+          </div>
         ) : pedidosFiltrados.length === 0 ? (
           <p
             style={{
@@ -600,80 +520,49 @@ export default function Relatorios() {
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '20px'
+              gap: '20px',
+              padding: '15px 0'
             }}
           >
             <div
               style={{
-                padding: '20px',
                 background: '#f0f9ff',
-                borderRadius: '10px',
-                border: '1px solid #bae6fd'
+                padding: '20px',
+                borderRadius: '10px'
               }}
             >
-              <h4
-                style={{
-                  margin: '0 0 10px',
-                  color: '#0369a1'
-                }}
-              >
-                Vendas no Balcão
+              <h4 style={{ color: '#0284c7', margin: '0 0 10px' }}>
+                Balcão
               </h4>
 
-              <h2
-                style={{
-                  margin: '0 0 8px',
-                  color: '#0f172a'
-                }}
-              >
+              <h3 style={{ margin: 0, color: '#0f172a' }}>
                 {formatarMoeda(vendasBalcao)}
-              </h2>
+              </h3>
 
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '13px',
-                  color: '#64748b'
-                }}
-              >
-                {quantidadeBalcao} pedido(s)
+              <p style={{ color: '#64748b', fontSize: '13px' }}>
+                {pedidosFiltrados.filter(p => p.origem === 'BALCAO').length}
+                {' '}pedido(s)
               </p>
             </div>
 
             <div
               style={{
-                padding: '20px',
                 background: '#f5f3ff',
-                borderRadius: '10px',
-                border: '1px solid #ddd6fe'
+                padding: '20px',
+                borderRadius: '10px'
               }}
             >
-              <h4
-                style={{
-                  margin: '0 0 10px',
-                  color: '#7c3aed'
-                }}
-              >
-                Vendas pelo Site
+              <h4 style={{ color: '#8b5cf6', margin: '0 0 10px' }}>
+                Site
               </h4>
 
-              <h2
-                style={{
-                  margin: '0 0 8px',
-                  color: '#0f172a'
-                }}
-              >
+              <h3 style={{ margin: 0, color: '#0f172a' }}>
                 {formatarMoeda(vendasSite)}
-              </h2>
+              </h3>
 
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '13px',
-                  color: '#64748b'
-                }}
-              >
-                {quantidadeSite} pedido(s)
+              <p style={{ color: '#64748b', fontSize: '13px' }}>
+                {pedidosFiltrados.filter(p => p.origem === 'SITE').length}
+                {' '}pedido(s)
               </p>
             </div>
           </div>
@@ -718,15 +607,13 @@ export default function Relatorios() {
                         borderRadius: '10px',
                         fontSize: '11px',
                         fontWeight: 'bold',
-                        background: p.origem === 'SITE'
-                          ? '#e0f2fe'
-                          : '#f1f5f9',
-                        color: p.origem === 'SITE'
-                          ? '#0284c7'
-                          : '#475569'
+                        background:
+                          p.origem === 'SITE' ? '#e0f2fe' : '#f1f5f9',
+                        color:
+                          p.origem === 'SITE' ? '#0284c7' : '#475569'
                       }}
                     >
-                      {p.origem || 'BALCAO'}
+                      {p.origem || 'BALCÃO'}
                     </span>
                   </td>
 
@@ -739,12 +626,11 @@ export default function Relatorios() {
                       style={{
                         fontSize: '12px',
                         fontWeight: 'bold',
-                        color: p.status === 'PAGO'
-                          ? '#10b981'
-                          : '#f59e0b'
+                        color:
+                          p.status === 'PAGO' ? '#10b981' : '#f59e0b'
                       }}
                     >
-                      {p.status || 'PENDENTE'}
+                      {p.status}
                     </span>
                   </td>
 
@@ -754,7 +640,7 @@ export default function Relatorios() {
                       color: '#10b981'
                     }}
                   >
-                    {formatarMoeda(p.total)}
+                    {formatarMoeda(Number(p.total) || 0)}
                   </td>
                 </tr>
               ))}
@@ -764,4 +650,4 @@ export default function Relatorios() {
       </div>
     </>
   );
-}gi
+}

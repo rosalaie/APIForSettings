@@ -5,14 +5,28 @@ const { PrismaClient } = require('@prisma/client');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const app = express();
 const prisma = new PrismaClient();
 
 app.use(cors());
-app.use(express.json());
+
+// Guarda o corpo original para validar a assinatura dos webhooks.
+app.use(express.json({
+  verify: (req, res, buffer) => {
+    req.rawBody = buffer.toString('utf8');
+  }
+}));
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const PAGBANK_TOKEN = process.env.PAGBANK_TOKEN;
+
+const PAGBANK_API_URL =
+  process.env.PAGBANK_API_URL || 'https://sandbox.api.pagseguro.com';
+
+const FRONTEND_URL = process.env.FRONTEND_URL;
+const API_PUBLIC_URL = process.env.API_PUBLIC_URL;
 
 if (!JWT_SECRET) {
   console.error('ERRO: JWT_SECRET não está configurado no arquivo .env.');
@@ -23,7 +37,6 @@ if (!JWT_SECRET) {
 // 1. MIDDLEWARE DE AUTENTICAÇÃO E PERMISSÕES
 // ==========================================
 
-// Verifica se o usuário está autenticado
 async function autenticarToken(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -76,7 +89,6 @@ async function autenticarToken(req, res, next) {
   }
 }
 
-// Verifica se o usuário possui uma das funções permitidas
 function exigirRole(...rolesPermitidas) {
   return (req, res, next) => {
     if (!req.usuario || !rolesPermitidas.includes(req.usuario.role)) {
@@ -93,7 +105,6 @@ function exigirRole(...rolesPermitidas) {
 // 2. AUTENTICAÇÃO E USUÁRIOS / CLIENTES
 // ==========================================
 
-// Função compartilhada para cadastrar clientes
 async function criarCliente(req, res, permitirBalcao = false) {
   try {
     const {
@@ -118,7 +129,6 @@ async function criarCliente(req, res, permitirBalcao = false) {
       });
     }
 
-    // Cadastro pelo balcão só pode ser realizado pelo administrador
     if (origem === 'BALCAO' && !permitirBalcao) {
       return res.status(403).json({
         error: 'Cadastro de balcão não permitido por esta rota.'
@@ -175,12 +185,10 @@ async function criarCliente(req, res, permitirBalcao = false) {
   }
 }
 
-// Cadastro público pelo site
 app.post('/register', async (req, res) => {
   return criarCliente(req, res, false);
 });
 
-// Cadastro de cliente pelo painel administrativo / balcão
 app.post(
   '/clients',
   autenticarToken,
@@ -256,7 +264,6 @@ app.post('/login', async (req, res) => {
 // DADOS DA CONTA DO CLIENTE
 // ==========================================
 
-// Consultar os próprios dados
 app.get(
   '/me',
   autenticarToken,
@@ -296,7 +303,6 @@ app.get(
   }
 );
 
-// Atualizar os próprios dados
 app.put(
   '/me',
   autenticarToken,
@@ -414,7 +420,6 @@ app.put(
 // PEDIDOS DO CLIENTE
 // ==========================================
 
-// Consultar somente os pedidos do cliente autenticado
 app.get(
   '/me/orders',
   autenticarToken,
@@ -660,7 +665,6 @@ app.put(
 // 3. ROTAS DE PRODUTOS
 // ==========================================
 
-// Listar produtos - público
 app.get('/products', async (req, res) => {
   try {
     const produtos = await prisma.products.findMany({
@@ -683,7 +687,6 @@ app.get('/products', async (req, res) => {
   }
 });
 
-// Buscar produto por ID - público
 app.get('/products/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -712,7 +715,6 @@ app.get('/products/:id', async (req, res) => {
   }
 });
 
-// Cadastrar produto - ADMIN
 app.post(
   '/products',
   autenticarToken,
@@ -769,7 +771,6 @@ app.post(
   }
 );
 
-// Editar produto - ADMIN
 app.put(
   '/products/:id',
   autenticarToken,
@@ -833,7 +834,6 @@ app.put(
   }
 );
 
-// Deletar produto - ADMIN
 app.delete(
   '/products/:id',
   autenticarToken,
@@ -864,7 +864,6 @@ app.delete(
 // 4. ROTAS DE CATEGORIAS
 // ==========================================
 
-// Listar categorias - público
 app.get('/categories', async (req, res) => {
   try {
     const categorias = await prisma.categories.findMany({
@@ -884,7 +883,6 @@ app.get('/categories', async (req, res) => {
   }
 });
 
-// Cadastrar categoria - ADMIN
 app.post(
   '/categories',
   autenticarToken,
@@ -924,7 +922,6 @@ app.post(
   }
 );
 
-// Editar categoria - ADMIN
 app.put(
   '/categories/:id',
   autenticarToken,
@@ -966,7 +963,6 @@ app.put(
   }
 );
 
-// Deletar categoria - ADMIN
 app.delete(
   '/categories/:id',
   autenticarToken,
@@ -997,7 +993,7 @@ app.delete(
 // 5. ROTAS DE PEDIDOS
 // ==========================================
 
-// Listar todos os pedidos - ADMIN
+// Listar pedidos - ADMIN
 app.get(
   '/orders',
   autenticarToken,
@@ -1057,8 +1053,6 @@ app.post(
         origem
       } = req.body;
 
-      // O cliente não pode escolher outro cliente para o pedido.
-      // O ID dele é obtido diretamente do token autenticado.
       const clienteDoPedido =
         req.usuario.role === 'CLIENT'
           ? req.usuario.id
@@ -1071,7 +1065,6 @@ app.post(
 
       if (
         !clienteDoPedido ||
-        !itens ||
         !Array.isArray(itens) ||
         itens.length === 0
       ) {
@@ -1142,7 +1135,13 @@ app.post(
         data: {
           clienteId: clienteDoPedido,
           total: totalCalculado,
-          formaPagamento: formaPagamento || 'Dinheiro',
+
+          // Pedidos feitos pelo site serão pagos pelo checkout PagBank.
+          formaPagamento:
+            req.usuario.role === 'CLIENT'
+              ? 'PagBank'
+              : (formaPagamento || 'Dinheiro'),
+
           origem: origemDoPedido,
           observacoes,
           itens: {
@@ -1198,7 +1197,6 @@ app.put(
         status
       } = req.body;
 
-      // Verifica se o pedido existe.
       const pedidoExistente = await prisma.orders.findUnique({
         where: { id }
       });
@@ -1209,7 +1207,6 @@ app.put(
         });
       }
 
-      // Valida o cliente informado.
       const clienteConvertido = Number(clienteId);
 
       if (!Number.isInteger(clienteConvertido) || clienteConvertido <= 0) {
@@ -1231,7 +1228,6 @@ app.put(
         });
       }
 
-      // Valida os itens do pedido.
       if (!Array.isArray(itens) || itens.length === 0) {
         return res.status(400).json({
           error: 'O pedido precisa conter ao menos um produto.'
@@ -1256,6 +1252,17 @@ app.put(
         });
       }
 
+      // Pedidos do site só podem ser marcados como pagos pelo webhook.
+      if (
+        status === 'PAGO' &&
+        pedidoExistente.origem === 'SITE' &&
+        pedidoExistente.status !== 'PAGO'
+      ) {
+        return res.status(400).json({
+          error: 'Pedidos do site só podem ser marcados como pagos após confirmação do PagBank.'
+        });
+      }
+
       const origensPermitidas = ['BALCAO', 'SITE'];
 
       if (
@@ -1267,7 +1274,6 @@ app.put(
         });
       }
 
-      // Busca os preços reais no banco e calcula o total.
       let totalCalculado = 0;
       const itensParaInserir = [];
 
@@ -1307,7 +1313,6 @@ app.put(
         });
       }
 
-      // Atualiza o pedido e substitui seus itens em uma transação.
       const pedidoAtualizado = await prisma.$transaction(async (tx) => {
         return tx.orders.update({
           where: { id },
@@ -1380,7 +1385,10 @@ app.put(
   }
 );
 
-// Atualizar status do pedido - ADMIN
+// ==========================================
+// ATUALIZAR STATUS DO PEDIDO - ADMIN
+// ==========================================
+
 app.patch(
   '/orders/:id/status',
   autenticarToken,
@@ -1405,6 +1413,26 @@ app.patch(
         });
       }
 
+      const pedidoExistente = await prisma.orders.findUnique({
+        where: { id }
+      });
+
+      if (!pedidoExistente) {
+        return res.status(404).json({
+          error: 'Pedido não encontrado.'
+        });
+      }
+
+      if (
+        status === 'PAGO' &&
+        pedidoExistente.origem === 'SITE' &&
+        pedidoExistente.status !== 'PAGO'
+      ) {
+        return res.status(400).json({
+          error: 'Pedidos do site só podem ser marcados como pagos após confirmação do PagBank.'
+        });
+      }
+
       const pedidoAtualizado = await prisma.orders.update({
         where: { id },
         data: { status }
@@ -1422,7 +1450,10 @@ app.patch(
   }
 );
 
-// Excluir pedido - ADMIN
+// ==========================================
+// EXCLUIR PEDIDO - ADMIN
+// ==========================================
+
 app.delete(
   '/orders/:id',
   autenticarToken,
@@ -1450,7 +1481,7 @@ app.delete(
 );
 
 // ==========================================
-// 6. ROTAS DE PAGAMENTO - PAGBANK
+// 6. PAGBANK - CRIAR CHECKOUT
 // ==========================================
 
 app.post(
@@ -1459,115 +1490,412 @@ app.post(
   exigirRole('CLIENT', 'ADMIN'),
   async (req, res) => {
     try {
-      const { valor, descricao, cliente } = req.body;
+      const pedidoId = Number(req.body.pedidoId);
 
-      const TOKEN = process.env.PAGBANK_TOKEN || '';
+      if (!Number.isInteger(pedidoId) || pedidoId <= 0) {
+        return res.status(400).json({
+          erro: 'Informe um ID de pedido válido.'
+        });
+      }
 
-      if (!TOKEN) {
+      if (!PAGBANK_TOKEN) {
         return res.status(500).json({
           erro: 'Token do PagBank não configurado no servidor.'
         });
       }
 
-      const valorNumerico = Number(valor);
-
-      if (
-        !Number.isFinite(valorNumerico) ||
-        valorNumerico <= 0 ||
-        !descricao
-      ) {
-        return res.status(400).json({
-          erro: 'Valor e descrição válidos são obrigatórios.'
+      if (!FRONTEND_URL || !API_PUBLIC_URL) {
+        return res.status(500).json({
+          erro: 'Configure FRONTEND_URL e API_PUBLIC_URL no ambiente do servidor.'
         });
       }
 
-      let dadosCliente;
-
-      if (req.usuario.role === 'CLIENT') {
-        // Para clientes, os dados vêm do banco.
-        // Não confiamos nos dados de outro usuário enviados pelo navegador.
-        dadosCliente = await prisma.users.findUnique({
-          where: {
-            id: req.usuario.id
-          },
-          select: {
-            nome: true,
-            email: true,
-            cpf: true
+      const pedido = await prisma.orders.findUnique({
+        where: {
+          id: pedidoId
+        },
+        include: {
+          cliente: true,
+          itens: {
+            include: {
+              produto: true
+            }
           }
+        }
+      });
+
+      if (!pedido) {
+        return res.status(404).json({
+          erro: 'Pedido não encontrado.'
         });
-      } else {
-        // No balcão, o administrador pode informar os dados do cliente.
-        dadosCliente = cliente;
       }
+
+      // O cliente só pode pagar os próprios pedidos.
+      if (
+        req.usuario.role === 'CLIENT' &&
+        pedido.clienteId !== req.usuario.id
+      ) {
+        return res.status(403).json({
+          erro: 'Você não tem permissão para pagar este pedido.'
+        });
+      }
+
+      if (pedido.origem !== 'SITE') {
+        return res.status(400).json({
+          erro: 'O checkout PagBank está disponível somente para pedidos do site.'
+        });
+      }
+
+      if (pedido.status !== 'PENDENTE') {
+        return res.status(400).json({
+          erro: 'Este pedido não está pendente de pagamento.'
+        });
+      }
+
+      if (!pedido.itens || pedido.itens.length === 0) {
+        return res.status(400).json({
+          erro: 'O pedido não possui produtos.'
+        });
+      }
+
+      // Evita criar vários checkouts para o mesmo pedido.
+      if (
+        pedido.pagbankCheckoutId &&
+        pedido.pagbankCheckoutUrl &&
+        pedido.pagbankPaymentStatus === 'WAITING'
+      ) {
+        return res.json({
+          sucesso: true,
+          pedidoId: pedido.id,
+          checkoutId: pedido.pagbankCheckoutId,
+          checkoutUrl: pedido.pagbankCheckoutUrl,
+          reutilizado: true
+        });
+      }
+
+      if (pedido.pagbankPaymentStatus === 'PAID') {
+        return res.status(400).json({
+          erro: 'Este pedido já possui pagamento confirmado.'
+        });
+      }
+
+      const dadosCliente = pedido.cliente;
 
       if (
         !dadosCliente ||
         !dadosCliente.nome ||
-        !dadosCliente.email ||
-        !dadosCliente.cpf
+        !dadosCliente.email
       ) {
         return res.status(400).json({
-          erro: 'Nome, e-mail e CPF do cliente são necessários para o pagamento.'
+          erro: 'O cadastro do cliente precisa ter nome e e-mail.'
         });
       }
 
-      const options = {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${TOKEN}`,
-          'Content-Type': 'application/json'
+      // O valor é calculado exclusivamente com os dados do banco.
+      const itensPagBank = pedido.itens.map((item) => ({
+        reference_id: String(item.produtoId),
+        name: item.produto.nome.substring(0, 100),
+        quantity: item.quantidade,
+        unit_amount: Math.round(item.precoUnit * 100)
+      }));
+
+      const totalEmCentavos = itensPagBank.reduce(
+        (total, item) => total + item.unit_amount * item.quantity,
+        0
+      );
+
+      if (totalEmCentavos <= 0) {
+        return res.status(400).json({
+          erro: 'O valor do pedido é inválido.'
+        });
+      }
+
+      const urlFrontend = FRONTEND_URL.replace(/\/$/, '');
+      const urlBackend = API_PUBLIC_URL.replace(/\/$/, '');
+
+      const urlRetorno =
+        `${urlFrontend}/checkout/retorno?pedido=${pedido.id}`;
+
+      const urlWebhook =
+        `${urlBackend}/webhooks/pagbank`;
+
+      const dadosCheckout = {
+        reference_id: `PEDIDO-${pedido.id}`,
+
+        customer_modifiable: true,
+
+        customer: {
+          name: `${dadosCliente.nome} ${dadosCliente.sobrenome || ''}`.trim(),
+          email: dadosCliente.email,
+          ...(dadosCliente.cpf && {
+            tax_id: dadosCliente.cpf.replace(/\D/g, '')
+          })
         },
-        body: JSON.stringify({
-          reference_id: `PEDIDO-${Date.now()}`,
-          customer: {
-            name: dadosCliente.nome,
-            email: dadosCliente.email,
-            tax_id: dadosCliente.cpf
+
+        items: itensPagBank,
+
+        payment_methods: [
+          {
+            type: 'CREDIT_CARD'
           },
-          items: [
-            {
-              name: descricao,
-              quantity: 1,
-              unit_amount: Math.round(valorNumerico * 100)
-            }
-          ]
-        })
+          {
+            type: 'PIX'
+          }
+        ],
+
+        redirect_url: urlRetorno,
+        return_url: urlRetorno,
+        redirect_waiting_time: 10,
+
+        notification_urls: [
+          urlWebhook
+        ],
+
+        payment_notification_urls: [
+          urlWebhook
+        ]
       };
 
       const response = await fetch(
-        'https://sandbox.api.pagseguro.com/orders',
-        options
+        `${PAGBANK_API_URL.replace(/\/$/, '')}/checkouts`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${PAGBANK_TOKEN}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          },
+          body: JSON.stringify(dadosCheckout)
+        }
       );
 
       const data = await response.json();
 
-      if (response.ok) {
-        return res.status(201).json({
-          sucesso: true,
-          order: data
+      if (!response.ok) {
+        console.error('Erro do PagBank ao criar checkout:', data);
+
+        return res.status(400).json({
+          sucesso: false,
+          erro: data
         });
       }
 
-      console.error('Erro do PagBank:', data);
+      const linkPagamento = data.links?.find(
+        (link) => link.rel === 'PAY'
+      );
 
-      return res.status(400).json({
-        sucesso: false,
-        erro: data
+      if (!data.id || !linkPagamento?.href) {
+        console.error('Resposta inesperada do PagBank:', data);
+
+        return res.status(502).json({
+          erro: 'O PagBank não retornou o identificador e o link do checkout.'
+        });
+      }
+
+      const pedidoAtualizado = await prisma.orders.update({
+        where: {
+          id: pedido.id
+        },
+        data: {
+          pagbankCheckoutId: data.id,
+          pagbankCheckoutUrl: linkPagamento.href,
+          pagbankPaymentStatus: 'WAITING',
+          formaPagamento: 'PagBank'
+        }
+      });
+
+      return res.status(201).json({
+        sucesso: true,
+        pedidoId: pedidoAtualizado.id,
+        checkoutId: data.id,
+        checkoutUrl: linkPagamento.href,
+        total: totalEmCentavos / 100
       });
 
     } catch (error) {
-      console.error('Erro interno no pagamento:', error);
+      console.error('Erro ao criar checkout PagBank:', error);
 
       return res.status(500).json({
-        erro: 'Falha ao processar pagamento.'
+        erro: 'Falha ao criar checkout de pagamento.'
       });
     }
   }
 );
 
 // ==========================================
-// 7. INICIALIZAÇÃO DO SERVIDOR
+// 7. WEBHOOK PAGBANK
+// ==========================================
+
+// O PagBank chama esta rota sem autenticação JWT.
+// A autenticidade é validada pela assinatura SHA-256.
+app.post(
+  '/webhooks/pagbank',
+  async (req, res) => {
+    try {
+      if (!PAGBANK_TOKEN) {
+        console.error('Token PagBank não configurado para validar webhook.');
+
+        return res.status(500).json({
+          erro: 'Configuração de webhook indisponível.'
+        });
+      }
+
+      const assinaturaRecebida =
+        req.headers['x-authenticity-token'];
+
+      if (!assinaturaRecebida || !req.rawBody) {
+        return res.status(401).json({
+          erro: 'Assinatura ou conteúdo da notificação ausente.'
+        });
+      }
+
+      const assinaturaEsperada = crypto
+        .createHash('sha256')
+        .update(`${PAGBANK_TOKEN}-${req.rawBody}`)
+        .digest('hex');
+
+      const assinaturaRecebidaBuffer = Buffer.from(
+        String(assinaturaRecebida).toLowerCase(),
+        'hex'
+      );
+
+      const assinaturaEsperadaBuffer = Buffer.from(
+        assinaturaEsperada,
+        'hex'
+      );
+
+      if (
+        assinaturaRecebidaBuffer.length !== assinaturaEsperadaBuffer.length ||
+        !crypto.timingSafeEqual(
+          assinaturaRecebidaBuffer,
+          assinaturaEsperadaBuffer
+        )
+      ) {
+        console.error('Webhook PagBank rejeitado: assinatura inválida.');
+
+        return res.status(401).json({
+          erro: 'Notificação não autenticada.'
+        });
+      }
+
+      const notificacao = req.body;
+
+      // O checkout usa PEDIDO-ID como referência interna.
+      const referencia = String(notificacao.reference_id || '');
+
+      const correspondencia = referencia.match(/^PEDIDO-(\d+)$/);
+
+      let pedido = null;
+
+      if (correspondencia) {
+        pedido = await prisma.orders.findUnique({
+          where: {
+            id: Number(correspondencia[1])
+          }
+        });
+      }
+
+      // Também permite localizar notificações de checkout pelo ID.
+      if (!pedido && notificacao.id) {
+        pedido = await prisma.orders.findFirst({
+          where: {
+            pagbankCheckoutId: String(notificacao.id)
+          }
+        });
+      }
+
+      if (!pedido) {
+        console.error(
+          'Webhook PagBank recebido sem pedido correspondente:',
+          notificacao.reference_id,
+          notificacao.id
+        );
+
+        // Responde 200 para evitar repetição indefinida de evento
+        // que não corresponde a um pedido conhecido.
+        return res.status(200).json({
+          recebido: true,
+          processado: false
+        });
+      }
+
+      const statusCobrancas = Array.isArray(notificacao.charges)
+        ? notificacao.charges.map((cobranca) => cobranca.status)
+        : [];
+
+      const pagamentoConfirmado =
+        notificacao.status === 'PAID' ||
+        statusCobrancas.includes('PAID');
+
+      const pagamentoEmAnalise =
+        notificacao.status === 'IN_ANALYSIS' ||
+        statusCobrancas.includes('IN_ANALYSIS');
+
+      const pagamentoRecusado =
+        notificacao.status === 'DECLINED' ||
+        statusCobrancas.includes('DECLINED');
+
+      const pagamentoCancelado =
+        notificacao.status === 'CANCELED' ||
+        statusCobrancas.includes('CANCELED');
+
+      const checkoutExpirado =
+        notificacao.status === 'EXPIRED';
+
+      let novoStatusPagamento = 'WAITING';
+
+      if (pagamentoConfirmado) {
+        novoStatusPagamento = 'PAID';
+      } else if (pagamentoEmAnalise) {
+        novoStatusPagamento = 'IN_ANALYSIS';
+      } else if (pagamentoRecusado) {
+        novoStatusPagamento = 'DECLINED';
+      } else if (pagamentoCancelado) {
+        novoStatusPagamento = 'CANCELED';
+      } else if (checkoutExpirado) {
+        novoStatusPagamento = 'EXPIRED';
+      }
+
+      const dadosAtualizacao = {
+        pagbankPaymentStatus: novoStatusPagamento
+      };
+
+      // Só uma notificação autenticada de pagamento PAID
+      // pode alterar o status do pedido para PAGO.
+      if (pagamentoConfirmado) {
+        dadosAtualizacao.status = 'PAGO';
+      }
+
+      await prisma.orders.update({
+        where: {
+          id: pedido.id
+        },
+        data: dadosAtualizacao
+      });
+
+      console.log(
+        `Webhook PagBank processado. Pedido ${pedido.id}: ${novoStatusPagamento}`
+      );
+
+      return res.status(200).json({
+        recebido: true,
+        processado: true,
+        pedidoId: pedido.id,
+        statusPagamento: novoStatusPagamento
+      });
+
+    } catch (error) {
+      console.error('Erro ao processar webhook PagBank:', error);
+
+      return res.status(500).json({
+        erro: 'Erro ao processar notificação do PagBank.'
+      });
+    }
+  }
+);
+
+// ==========================================
+// 8. INICIALIZAÇÃO DO SERVIDOR
 // ==========================================
 
 const PORT = process.env.PORT || 3000;

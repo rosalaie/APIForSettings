@@ -15,6 +15,7 @@ import Loja from '../pages/Loja.jsx';
 import MinhaConta from '../pages/MinhaConta.jsx';
 import MeusPedidos from '../pages/MeusPedidos.jsx';
 import Carrinho from '../pages/Carrinho.jsx';
+import Checkout from '../pages/Checkout.jsx';
 
 function RequireRole({ role, children }) {
   const token = localStorage.getItem('token');
@@ -61,7 +62,7 @@ export default function AppRoutes() {
         <Route path="/" element={<Loja />} />
         <Route path="/loja" element={<Loja />} />
 
-        {/* CARRINHO PÚBLICO */}
+        {/* CARRINHO */}
         <Route path="/carrinho" element={<Carrinho />} />
 
         {/* AUTENTICAÇÃO */}
@@ -87,6 +88,16 @@ export default function AppRoutes() {
           }
         />
 
+        {/* CHECKOUT */}
+        <Route
+          path="/checkout"
+          element={
+            <RequireRole role="CLIENT">
+              <Checkout />
+            </RequireRole>
+          }
+        />
+
         {/* PAINEL ADMINISTRATIVO */}
         <Route
           path="/admin"
@@ -96,7 +107,6 @@ export default function AppRoutes() {
             </RequireRole>
           }
         >
-          <Route index element={<Navigate to="/admin" replace />} />
           <Route path="clientes" element={<Clientes />} />
           <Route path="produtos" element={<Produtos />} />
           <Route path="categorias" element={<Categorias />} />

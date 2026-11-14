@@ -31,7 +31,7 @@ model Products {
   estoque     Int          @default(0)
   imagemUrl   String?
   createdAt   DateTime     @default(now())
-  
+
   categoriaId Int
   categoria   Categories   @relation(fields: [categoriaId], references: [id])
 
@@ -61,17 +61,23 @@ enum OrderOrigin {
 }
 
 model Orders {
-  id             Int          @id @default(autoincrement())
-  clienteId      Int
-  cliente        Users        @relation(fields: [clienteId], references: [id])
-  total          Float
-  status         OrderStatus  @default(PENDENTE)
-  formaPagamento String?
-  origem         OrderOrigin  @default(BALCAO)
-  observacoes    String?
-  itens          OrderItems[]
-  criadoEm       DateTime     @default(now())
-  atualizadoEm   DateTime     @updatedAt
+  id                    Int          @id @default(autoincrement())
+  clienteId             Int
+  cliente               Users        @relation(fields: [clienteId], references: [id])
+  total                 Float
+  status                OrderStatus  @default(PENDENTE)
+  formaPagamento        String?
+  origem                OrderOrigin  @default(BALCAO)
+  observacoes           String?
+
+  // Dados de integração com o PagBank
+  pagbankCheckoutId     String?      @unique
+  pagbankCheckoutUrl    String?      @db.Text
+  pagbankPaymentStatus  String?
+
+  itens                 OrderItems[]
+  criadoEm              DateTime     @default(now())
+  atualizadoEm          DateTime     @updatedAt
 }
 
 model OrderItems {

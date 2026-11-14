@@ -22,7 +22,9 @@ export default function Login() {
 
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           email: email.trim(),
           senha
@@ -36,29 +38,25 @@ export default function Login() {
         return;
       }
 
-      // Verifica se o backend retornou os dados necessários
       if (!data.user || !data.token) {
         alert('Não foi possível concluir o login. Tente novamente.');
         return;
       }
 
-      // Verifica o tipo de usuário
       if (data.user.role !== 'ADMIN' && data.user.role !== 'CLIENT') {
         alert('Perfil de usuário não autorizado.');
         return;
       }
 
-      // Salva os dados de autenticação
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      // Redireciona conforme o perfil
       if (data.user.role === 'ADMIN') {
         alert(`Bem-vinda de volta, ${data.user.nome || 'Administradora'}!`);
-        navigate('/categorias');
+        navigate('/admin', { replace: true });
       } else {
         alert(`Bem-vindo(a), ${data.user.nome || 'Cliente'}!`);
-        navigate('/loja');
+        navigate('/loja', { replace: true });
       }
 
     } catch (err) {

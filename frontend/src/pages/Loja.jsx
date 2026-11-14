@@ -26,6 +26,7 @@ export default function Loja() {
   const [produtos, setProdutos] = useState([]);
   const [produtoSelecionado, setProdutoSelecionado] = useState(null);
   const [busca, setBusca] = useState('');
+  const [paginaAtual, setPaginaAtual] = useState(1);
   const [loading, setLoading] = useState(true);
   const [usuario, setUsuario] = useState(null);
 
@@ -106,6 +107,61 @@ export default function Loja() {
 
     return nome.includes(termo) || descricao.includes(termo);
   });
+
+  // Paginação: exibe no máximo 6 produtos por página
+  const ITENS_POR_PAGINA = 6;
+  const totalPaginas = Math.ceil(produtosFiltrados.length / ITENS_POR_PAGINA);
+  const indiceInicial = (paginaAtual - 1) * ITENS_POR_PAGINA;
+  const produtosPaginados = produtosFiltrados.slice(
+    indiceInicial,
+    indiceInicial + ITENS_POR_PAGINA
+  );
+
+  // Adiciona o produto ao carrinho usando a estrutura esperada por Carrinho.jsx
+  function adicionarAoCarrinho(produto) {
+    if (usuario?.role !== 'CLIENT') {
+      alert('Entre na sua conta de cliente para adicionar produtos ao carrinho.');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const carrinhoSalvo = JSON.parse(localStorage.getItem('carrinho') || '[]');
+      const carrinho = Array.isArray(carrinhoSalvo) ? carrinhoSalvo : [];
+      const itemExistente = carrinho.find(
+        item => Number(item.id) === Number(produto.id)
+      );
+
+      if (itemExistente) {
+        itemExistente.quantidade = Number(itemExistente.quantidade || 1) + 1;
+      } else {
+        carrinho.push({
+          id: produto.id,
+          nome: produto.nome,
+          preco: Number(produto.preco || 0),
+          descricao: produto.descricao || '',
+          imagemUrl: produto.imagemUrl || '',
+          quantidade: 1
+        });
+      }
+
+      localStorage.setItem('carrinho', JSON.stringify(carrinho));
+      alert(`${produto.nome} foi adicionado ao carrinho.`);
+    } catch (error) {
+      console.error('Erro ao adicionar produto ao carrinho:', error);
+      alert('Não foi possível adicionar o produto ao carrinho. Tente novamente.');
+    }
+  }
+
+  // Adiciona o produto e encaminha o cliente para revisar o pedido
+  function comprarAgora(produto) {
+    adicionarAoCarrinho(produto);
+
+    if (usuario?.role === 'CLIENT') {
+      setProdutoSelecionado(null);
+      navigate('/carrinho');
+    }
+  }
 
   // Link para WhatsApp
   const gerarLinkWhatsapp = (produto) => {
@@ -254,6 +310,95 @@ export default function Loja() {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 22px;
+        }
+
+        .paginacao {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin: 28px 0 10px;
+        }
+
+        .paginacao button {
+          min-width: 38px;
+          height: 38px;
+          padding: 0 12px;
+          border: 1px solid #e2e2e2;
+          border-radius: 7px;
+          background: #ffffff;
+          color: #333333;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .paginacao button.ativa {
+          background: ${COR_PRINCIPAL};
+          border-color: ${COR_PRINCIPAL};
+          color: #ffffff;
+        }
+
+        .paginacao button:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        .paginacao-info {
+          width: 100%;
+          text-align: center;
+          color: #777777;
+          font-size: 12px;
+          margin-top: 5px;
+        }
+
+        .modal-acoes-cliente {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          margin-top: 12px;
+        }
+
+        .modal-botao-carrinho,
+        .modal-botao-comprar {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          border: none;
+          border-radius: 8px;
+          padding: 13px 10px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .modal-botao-carrinho {
+          background: #fcebed;
+          color: ${COR_PRINCIPAL};
+        }
+
+        .modal-botao-comprar {
+          background: ${COR_PRINCIPAL};
+          color: #ffffff;
+        }
+
+        .modal-botao-carrinho:hover {
+          background: #f7d9de;
+        }
+
+        .modal-botao-comprar:hover {
+          background: #94172b;
+        }
+
+        .modal-login-link {
+          display: block;
+          text-align: center;
+          margin-top: 12px;
+          color: ${COR_PRINCIPAL};
+          font-weight: 700;
+          font-size: 13px;
+          text-decoration: none;
         }
 
         .produto-card {
@@ -708,6 +853,10 @@ export default function Loja() {
             padding: 25px 20px;
           }
 
+          .modal-acoes-cliente {
+            grid-template-columns: 1fr;
+          }
+
           .modal-informacoes h2 {
             font-size: 21px;
           }
@@ -770,7 +919,7 @@ export default function Loja() {
                 Nosso Contato
               </a>
 
-              <Link to="/categorias">
+              <Link to="/admin">
                 Voltar ao Painel
               </Link>
             </>
@@ -805,7 +954,10 @@ export default function Loja() {
               type="text"
               placeholder="Buscar produto..."
               value={busca}
-              onChange={e => setBusca(e.target.value)}
+              onChange={e => {
+                setBusca(e.target.value);
+                setPaginaAtual(1);
+              }}
             />
           </div>
 
@@ -834,7 +986,7 @@ export default function Loja() {
 
             <div className="produtos-grid">
 
-              {produtosFiltrados.map(prod => {
+              {produtosPaginados.map(prod => {
 
                 const imgUrl = obterUrlImagem(prod.imagemUrl);
 
@@ -919,6 +1071,44 @@ export default function Loja() {
                 );
               })}
 
+            </div>
+          )}
+
+          {!loading && totalPaginas > 1 && (
+            <div className="paginacao">
+              <button
+                type="button"
+                onClick={() => setPaginaAtual(pagina => Math.max(1, pagina - 1))}
+                disabled={paginaAtual === 1}
+                aria-label="Página anterior"
+              >
+                Anterior
+              </button>
+
+              {Array.from({ length: totalPaginas }, (_, indice) => indice + 1).map(numero => (
+                <button
+                  key={numero}
+                  type="button"
+                  className={paginaAtual === numero ? 'ativa' : ''}
+                  onClick={() => setPaginaAtual(numero)}
+                  aria-current={paginaAtual === numero ? 'page' : undefined}
+                >
+                  {numero}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setPaginaAtual(pagina => Math.min(totalPaginas, pagina + 1))}
+                disabled={paginaAtual === totalPaginas}
+                aria-label="Próxima página"
+              >
+                Próxima
+              </button>
+
+              <div className="paginacao-info">
+                Mostrando {produtosPaginados.length} de {produtosFiltrados.length} produto(s)
+              </div>
             </div>
           )}
 
@@ -1116,6 +1306,38 @@ export default function Loja() {
                 <FaWhatsapp size={20} />
                 Consultar pelo WhatsApp
               </a>
+
+              {usuario?.role === 'CLIENT' && (
+                <div className="modal-acoes-cliente">
+                  <button
+                    type="button"
+                    className="modal-botao-carrinho"
+                    onClick={() => adicionarAoCarrinho(produtoSelecionado)}
+                  >
+                    <FaShoppingCart />
+                    Adicionar ao carrinho
+                  </button>
+
+                  <button
+                    type="button"
+                    className="modal-botao-comprar"
+                    onClick={() => comprarAgora(produtoSelecionado)}
+                  >
+                    <FaShoppingBag />
+                    Comprar agora
+                  </button>
+                </div>
+              )}
+
+              {!usuario && (
+                <Link
+                  to="/login"
+                  className="modal-login-link"
+                  onClick={() => setProdutoSelecionado(null)}
+                >
+                  Entre na sua conta para fazer um pedido
+                </Link>
+              )}
 
             </div>
 
